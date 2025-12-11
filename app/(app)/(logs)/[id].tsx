@@ -1,39 +1,143 @@
 import { useEffect, useState } from 'react'
-import { View, ScrollView, Alert, Image, TouchableOpacity } from 'react-native'
+import { View, ScrollView, Alert, TouchableOpacity, TextInput } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
+import { Ionicons } from '@expo/vector-icons'
 import { ThemedView } from '../../../components/themed/ThemedView'
 import { ThemedText } from '../../../components/themed/ThemedText'
 import { ThemedCard } from '../../../components/themed/ThemedCard'
 import { Button } from '../../../components/ui/Button'
+import { Input } from '../../../components/ui/Input'
+import { DateTimePicker } from '../../../components/ui/DateTimePicker'
 import { SessionService } from '../../../services/session.service'
 import { PDFExportService } from '../../../services/pdf-export.service'
-import { Session } from '../../../types/models'
+import { useTheme } from '../../../hooks/useTheme'
 import { dateUtils } from '../../../utils/timezone'
+import type { Session, Break } from '../../../types/models'
 
 export default function SessionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const router = useRouter()
+  const { colors } = useTheme()
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
   const [exporting, setExporting] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+  
+  // Edit form state
+  const [editStartTime, setEditStartTime] = useState('')
+  const [editEndTime, setEditEndTime] = useState('')
+  const [editDescription, setEditDescription] = useState('')
+  const [editBreaks, setEditBreaks] = useState<Break[]>([])
+
+  const formatTime12Hour = (time: string | null) => {
+    if (!time) return '-'
+    try {
+      const [hours, minutes] = time.split(':').map(Number)
+      const period = hours >= 12 ? 'PM' : 'AM'
+      const hour12 = hours % 12 || 12
+      return `${hour12}:${String(minutes).padStart(2, '0')} ${period}`
+    } catch {
+      return time
+    }
+  }
 
   useEffect(() => {
     loadSession()
   }, [id])
+
+  useEffect(() => {
+    if (session && isEditing) {
+      setEditStartTime(session.start_time)
+      setEditEndTime(session.end_time || '')
+      setEditDescription(session.description || '')
+      // Breaks are not stored in database, start with empty array
+      setEditBreaks([])
+    }
+  }, [isEditing, session])
 
   const loadSession = async () => {
     if (!id) return
 
     setLoading(true)
     try {
-      const data = await SessionService.getSessionById(id)
-      setSession(data)
+      const data = await SessionService.getSessionById(id) as any
+      // Transform database row to Session model
+      // Note: breaks are not stored in database, set to null
+      const sessionData: Session = {
+        ...data,
+        breaks: null,
+      }
+      setSession(sessionData)
     } catch (error) {
       Alert.alert('Error', 'Failed to load session')
       router.back()
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSave = async () => {
+    if (!session || !editStartTime) {
+      Alert.alert('Error', 'Please fill in all required fields')
+      return
+    }
+
+    setSaving(true)
+    try {
+      // Calculate duration and total hours
+      let duration = 0
+      let totalHours = 0
+      
+      if (editEndTime) {
+        const start = new Date(`2000-01-01T${editStartTime}`)
+        const end = new Date(`2000-01-01T${editEndTime}`)
+        duration = (end.getTime() - start.getTime()) / (1000 * 60) // minutes
+        
+        // Calculate break duration
+        let breakDuration = 0
+        editBreaks.forEach(br => {
+          if (br.end) {
+            const breakStart = new Date(`2000-01-01T${br.start}`)
+            const breakEnd = new Date(`2000-01-01T${br.end}`)
+            breakDuration += (breakEnd.getTime() - breakStart.getTime()) / (1000 * 60)
+          }
+        })
+        
+        totalHours = (duration - breakDuration) / 60
+      }
+
+      // Update session (breaks are not stored in database, only used for calculation)
+      await SessionService.updateSession(session.id, {
+        start_time: editStartTime,
+        end_time: editEndTime || null,
+        duration,
+        total_hours: totalHours,
+        description: editDescription || null,
+      })
+
+      Alert.alert('Success', 'Session updated successfully')
+      setIsEditing(false)
+      loadSession()
+    } catch (error: any) {
+      Alert.alert('Error', 'Failed to update session: ' + error.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleAddBreak = () => {
+    setEditBreaks([...editBreaks, { start: '12:00', end: '12:30' }])
+  }
+
+  const handleRemoveBreak = (index: number) => {
+    setEditBreaks(editBreaks.filter((_, i) => i !== index))
+  }
+
+  const handleUpdateBreak = (index: number, field: 'start' | 'end', value: string) => {
+    const updated = [...editBreaks]
+    updated[index] = { ...updated[index], [field]: value }
+    setEditBreaks(updated)
   }
 
   const handleExport = async () => {
@@ -84,136 +188,243 @@ export default function SessionDetailScreen() {
   return (
     <ThemedView className="flex-1">
       <ScrollView className="flex-1 px-6 py-8">
-        <ThemedText weight="bold" className="text-3xl mb-2">
-          Session Details
-        </ThemedText>
+        <View className="flex-row justify-between items-center mb-2">
+          <ThemedText weight="bold" className="text-3xl">
+            Session Details
+          </ThemedText>
+          {!isEditing && (
+            <TouchableOpacity onPress={() => setIsEditing(true)}>
+              <Ionicons name="pencil" size={24} color={colors.accent} />
+            </TouchableOpacity>
+          )}
+        </View>
+        
         <ThemedText variant="secondary" className="text-base mb-8">
           {dateUtils.formatPH(session.date, 'EEEE, MMMM dd, yyyy')}
         </ThemedText>
 
-        {/* Time Info */}
-        <ThemedCard className="mb-4">
-          <ThemedText variant="secondary" className="text-sm mb-4">
-            ⏰ Time Information
-          </ThemedText>
-          
-          <View className="flex-row justify-between mb-3">
-            <ThemedText variant="secondary">Time In:</ThemedText>
-            <ThemedText weight="medium">
-              {dateUtils.formatPH(session.time_in, 'hh:mm:ss a')}
-            </ThemedText>
-          </View>
-
-          <View className="flex-row justify-between mb-3">
-            <ThemedText variant="secondary">Time Out:</ThemedText>
-            <ThemedText weight="medium">
-              {session.time_out
-                ? dateUtils.formatPH(session.time_out, 'hh:mm:ss a')
-                : 'Not ended'}
-            </ThemedText>
-          </View>
-
-          <View className="flex-row justify-between">
-            <ThemedText variant="secondary">Total Hours:</ThemedText>
-            <ThemedText weight="bold" className="text-xl">
-              {session.total_hours.toFixed(2)}h
-            </ThemedText>
-          </View>
-        </ThemedCard>
-
-        {/* Breaks */}
-        {session.breaks.length > 0 && (
-          <ThemedCard className="mb-4">
-            <ThemedText variant="secondary" className="text-sm mb-4">
-              ☕ Breaks ({session.breaks.length})
-            </ThemedText>
-            
-            {session.breaks.map((br, index) => (
-              <View
-                key={index}
-                className="flex-row justify-between mb-2 pb-2 border-b border-dark-tertiary last:border-0"
-              >
-                <ThemedText variant="secondary">Break {index + 1}:</ThemedText>
-                <ThemedText>
-                  {dateUtils.formatPH(br.start, 'hh:mm a')} -{' '}
-                  {br.end ? dateUtils.formatPH(br.end, 'hh:mm a') : 'Ongoing'}
+        {isEditing ? (
+          // Edit Mode
+          <>
+            {/* Time Info Edit */}
+            <ThemedCard className="mb-4">
+              <View className="flex-row items-center mb-4">
+                <Ionicons name="time-outline" size={20} color={colors.accent} style={{ marginRight: 8 }} />
+                <ThemedText variant="secondary" className="text-sm">
+                  Time Information
                 </ThemedText>
               </View>
-            ))}
-          </ThemedCard>
-        )}
-
-        {/* Tasks */}
-        {session.tasks && (
-          <ThemedCard className="mb-4">
-            <ThemedText variant="secondary" className="text-sm mb-2">
-              📝 Tasks Completed
-            </ThemedText>
-            <ThemedText className="text-base">{session.tasks}</ThemedText>
-          </ThemedCard>
-        )}
-
-        {/* Lessons Learned */}
-        {session.lessons_learned && (
-          <ThemedCard className="mb-4">
-            <ThemedText variant="secondary" className="text-sm mb-2">
-              💡 Lessons Learned
-            </ThemedText>
-            <ThemedText className="text-base">{session.lessons_learned}</ThemedText>
-          </ThemedCard>
-        )}
-
-        {/* Notes */}
-        {session.notes && (
-          <ThemedCard className="mb-4">
-            <ThemedText variant="secondary" className="text-sm mb-2">
-              📌 Notes
-            </ThemedText>
-            <ThemedText className="text-base">{session.notes}</ThemedText>
-          </ThemedCard>
-        )}
-
-        {/* Images */}
-        {session.image_urls && session.image_urls.length > 0 && (
-          <ThemedCard className="mb-4">
-            <ThemedText variant="secondary" className="text-sm mb-4">
-              📷 Images ({session.image_urls.length})
-            </ThemedText>
-            
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View className="flex-row gap-2">
-                {session.image_urls.map((url, index) => (
-                  <TouchableOpacity key={index}>
-                    <Image
-                      source={{ uri: url }}
-                      className="w-40 h-40 rounded-lg"
-                      resizeMode="cover"
-                    />
-                  </TouchableOpacity>
-                ))}
+              
+              <View className="mb-4">
+                <ThemedText className="mb-2">Start Time:</ThemedText>
+                <TextInput
+                  value={editStartTime}
+                  onChangeText={setEditStartTime}
+                  placeholder="HH:MM (24-hour)"
+                  placeholderTextColor={colors.textSecondary}
+                  style={{
+                    backgroundColor: colors.secondary,
+                    color: colors.text,
+                    padding: 12,
+                    borderRadius: 8,
+                    fontSize: 16,
+                  }}
+                />
               </View>
-            </ScrollView>
-          </ThemedCard>
-        )}
 
-        {/* Actions */}
-        <View className="space-y-3 mt-8 mb-8">
-          <Button 
-            onPress={handleExport}
-            loading={exporting}
-            disabled={exporting}
-          >
-            📄 Export as PDF
-          </Button>
-          
-          <Button variant="outline" onPress={() => router.back()}>
-            Back to History
-          </Button>
-          
-          <Button variant="danger" onPress={handleDelete}>
-            Delete Session
-          </Button>
-        </View>
+              <View className="mb-4">
+                <ThemedText className="mb-2">End Time:</ThemedText>
+                <TextInput
+                  value={editEndTime}
+                  onChangeText={setEditEndTime}
+                  placeholder="HH:MM (24-hour)"
+                  placeholderTextColor={colors.textSecondary}
+                  style={{
+                    backgroundColor: colors.secondary,
+                    color: colors.text,
+                    padding: 12,
+                    borderRadius: 8,
+                    fontSize: 16,
+                  }}
+                />
+              </View>
+            </ThemedCard>
+
+            {/* Breaks Edit */}
+            <ThemedCard className="mb-4">
+              <View className="flex-row items-center justify-between mb-4">
+                <View className="flex-row items-center">
+                  <Ionicons name="cafe-outline" size={20} color={colors.accent} style={{ marginRight: 8 }} />
+                  <ThemedText variant="secondary" className="text-sm">
+                    Breaks ({editBreaks.length})
+                  </ThemedText>
+                </View>
+                <TouchableOpacity onPress={handleAddBreak}>
+                  <Ionicons name="add-circle" size={24} color={colors.accent} />
+                </TouchableOpacity>
+              </View>
+
+              {editBreaks.map((breakItem, index) => (
+                <View key={index} className="mb-4 p-3 rounded-lg" style={{ backgroundColor: colors.secondary }}>
+                  <View className="flex-row justify-between items-center mb-2">
+                    <ThemedText weight="medium">Break {index + 1}</ThemedText>
+                    <TouchableOpacity onPress={() => handleRemoveBreak(index)}>
+                      <Ionicons name="trash-outline" size={20} color="#f44336" />
+                    </TouchableOpacity>
+                  </View>
+                  
+                  <View className="flex-row gap-2">
+                    <View className="flex-1">
+                      <ThemedText variant="secondary" className="text-xs mb-1">Start</ThemedText>
+                      <TextInput
+                        value={breakItem.start}
+                        onChangeText={(value) => handleUpdateBreak(index, 'start', value)}
+                        placeholder="HH:MM"
+                        placeholderTextColor={colors.textSecondary}
+                        style={{
+                          backgroundColor: colors.background,
+                          color: colors.text,
+                          padding: 8,
+                          borderRadius: 6,
+                          fontSize: 14,
+                        }}
+                      />
+                    </View>
+                    <View className="flex-1">
+                      <ThemedText variant="secondary" className="text-xs mb-1">End</ThemedText>
+                      <TextInput
+                        value={breakItem.end || ''}
+                        onChangeText={(value) => handleUpdateBreak(index, 'end', value)}
+                        placeholder="HH:MM"
+                        placeholderTextColor={colors.textSecondary}
+                        style={{
+                          backgroundColor: colors.background,
+                          color: colors.text,
+                          padding: 8,
+                          borderRadius: 6,
+                          fontSize: 14,
+                        }}
+                      />
+                    </View>
+                  </View>
+                </View>
+              ))}
+            </ThemedCard>
+
+            {/* Description Edit */}
+            <ThemedCard className="mb-4">
+              <View className="flex-row items-center mb-4">
+                <Ionicons name="document-text-outline" size={20} color={colors.accent} style={{ marginRight: 8 }} />
+                <ThemedText variant="secondary" className="text-sm">
+                  Description
+                </ThemedText>
+              </View>
+              <TextInput
+                value={editDescription}
+                onChangeText={setEditDescription}
+                placeholder="What did you work on today?"
+                placeholderTextColor={colors.textSecondary}
+                multiline
+                numberOfLines={4}
+                style={{
+                  backgroundColor: colors.secondary,
+                  color: colors.text,
+                  padding: 12,
+                  borderRadius: 8,
+                  fontSize: 16,
+                  minHeight: 100,
+                  textAlignVertical: 'top',
+                }}
+              />
+            </ThemedCard>
+
+            {/* Edit Actions */}
+            <View className="space-y-3 mt-4 mb-8">
+              <Button onPress={handleSave} loading={saving} disabled={saving}>
+                Save Changes
+              </Button>
+              <Button variant="outline" onPress={() => setIsEditing(false)} disabled={saving}>
+                Cancel
+              </Button>
+            </View>
+          </>
+        ) : (
+          // View Mode
+          <>
+            {/* Time Info */}
+            <ThemedCard className="mb-4">
+              <View className="flex-row items-center mb-4">
+                <Ionicons name="time-outline" size={20} color={colors.accent} style={{ marginRight: 8 }} />
+                <ThemedText variant="secondary" className="text-sm">
+                  Time Information
+                </ThemedText>
+              </View>
+              
+              <View className="flex-row justify-between mb-3">
+                <ThemedText variant="secondary">Time In:</ThemedText>
+                <ThemedText weight="medium">
+                  {formatTime12Hour(session.start_time)}
+                </ThemedText>
+              </View>
+
+              <View className="flex-row justify-between mb-3">
+                <ThemedText variant="secondary">Time Out:</ThemedText>
+                <ThemedText weight="medium">
+                  {session.end_time
+                    ? formatTime12Hour(session.end_time)
+                    : 'Not ended'}
+                </ThemedText>
+              </View>
+
+              <View className="flex-row justify-between">
+                <ThemedText variant="secondary">Total Hours:</ThemedText>
+                <ThemedText weight="bold" className="text-xl">
+                  {session.total_hours.toFixed(2)}h
+                </ThemedText>
+              </View>
+            </ThemedCard>
+
+            {/* Breaks Display - Hidden since breaks are not stored in database */}
+
+            {/* Description */}
+            {session.description && (
+              <ThemedCard className="mb-4">
+                <View className="flex-row items-center mb-4">
+                  <Ionicons name="document-text-outline" size={20} color={colors.accent} style={{ marginRight: 8 }} />
+                  <ThemedText variant="secondary" className="text-sm">
+                    Description
+                  </ThemedText>
+                </View>
+                <ThemedText className="text-base">{session.description}</ThemedText>
+              </ThemedCard>
+            )}
+
+            {/* Actions */}
+            <View className="space-y-3 mt-8 mb-8">
+              <Button 
+                onPress={handleExport}
+                loading={exporting}
+                disabled={exporting}
+              >
+                <View className="flex-row items-center justify-center">
+                  <Ionicons name="document-outline" size={20} color="#ffffff" style={{ marginRight: 8 }} />
+                  <ThemedText style={{ color: '#ffffff' }}>Export as PDF</ThemedText>
+                </View>
+              </Button>
+              
+              <Button variant="outline" onPress={() => router.back()}>
+                Back to History
+              </Button>
+              
+              <Button variant="danger" onPress={handleDelete}>
+                <View className="flex-row items-center justify-center">
+                  <Ionicons name="trash-outline" size={20} color="#ffffff" style={{ marginRight: 8 }} />
+                  <ThemedText style={{ color: '#ffffff' }}>Delete Session</ThemedText>
+                </View>
+              </Button>
+            </View>
+          </>
+        )}
       </ScrollView>
     </ThemedView>
   )

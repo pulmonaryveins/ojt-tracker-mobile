@@ -16,22 +16,22 @@ const faqs: FAQItem[] = [
   {
     emoji: '⏱️',
     question: 'How do I start tracking my time?',
-    answer: 'Go to the Tracker tab and tap "Clock In". Your session will start automatically.',
+    answer: 'Go to the Tracker tab and tap "Create Manual Entry". Enter your date, start time, end time, and optionally add break periods.',
   },
   {
     emoji: '☕',
-    question: 'How do I take a break?',
-    answer: 'During an active session, tap "Take Break". Your time will pause until you tap "End Break".',
+    question: 'How do I add breaks to my time entry?',
+    answer: 'In the Manual Time Entry form, tap "Add Break Period" to record rest or lunch breaks. This will be calculated from your total hours.',
   },
   {
     emoji: '📝',
     question: 'How do I log my daily activities?',
-    answer: 'When you clock out, you\'ll be prompted to enter tasks, lessons learned, and optional notes.',
+    answer: 'When creating a Manual Time Entry, you can add a description of what you worked on. This helps document your OJT activities.',
   },
   {
     emoji: '📷',
     question: 'Can I add images to my logs?',
-    answer: 'Yes! When logging out, you can add up to 3 images from your camera or gallery.',
+    answer: 'Image uploads are currently not available. Focus on recording your time accurately and adding descriptions.',
   },
   {
     emoji: '📄',

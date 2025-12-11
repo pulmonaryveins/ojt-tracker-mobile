@@ -1,3 +1,42 @@
+/**
+ * ============================================================
+ * TIME TRACKER - MANUAL ENTRY ONLY MODE
+ * ============================================================
+ * 
+ * STATUS: Clock In/Clock Out features temporarily disabled
+ * 
+ * The Clock In and Clock Out features have been commented out 
+ * to allow the system to rely solely on Manual Time Entry for 
+ * recording Time In and Time Out. This is a temporary measure 
+ * while Clock In issues are being resolved.
+ * 
+ * DISABLED FEATURES:
+ * - Clock In button and functionality
+ * - Clock Out button and functionality  
+ * - Start Break / End Break functionality
+ * - Active session tracking and display
+ * - Real-time elapsed time counter
+ * - Session details card
+ * - Force delete / cleanup stuck sessions
+ * 
+ * ACTIVE FEATURES:
+ * - Manual Time Entry (primary method)
+ * - Activity Logs viewing
+ * - Offline mode support
+ * - Data synchronization
+ * 
+ * TO RE-ENABLE CLOCK IN/OUT:
+ * 1. Uncomment state variables (activeSession, activeBreak, breaks, etc.)
+ * 2. Uncomment all handler functions (handleTimeIn, handleTimeOut, etc.)
+ * 3. Uncomment helper functions (getElapsedTime, getTotalBreakTime, etc.)
+ * 4. Uncomment loadActiveSession() and useFocusEffect hook
+ * 5. Restore UI sections for session status, details, and action buttons
+ * 6. Test thoroughly before deploying
+ * 
+ * All commented code is preserved below for future re-enablement.
+ * ============================================================
+ */
+
 import { useState, useEffect, useCallback } from 'react'
 import { View, ScrollView, Alert, TextInput } from 'react-native'
 import { useFocusEffect, useRouter } from 'expo-router'
@@ -14,21 +53,23 @@ import { OfflineService } from '../../../services/offline.service'
 import { useTheme } from '../../../hooks/useTheme'
 import type { Database } from '../../../types/supabase'
 
-type Session = Database['public']['Tables']['sessions']['Row']
-type Break = Database['public']['Tables']['breaks']['Row']
+// DISABLED - Types not needed for Manual Entry only mode
+// type Session = Database['public']['Tables']['sessions']['Row']
+// type Break = Database['public']['Tables']['breaks']['Row']
 
 export default function TrackerScreen() {
   const { colors } = useTheme()
   const router = useRouter()
   const user = useAuthStore((state) => state.user)
   
-  const [activeSession, setActiveSession] = useState<Session | null>(null)
-  const [activeBreak, setActiveBreak] = useState<Break | null>(null)
-  const [breaks, setBreaks] = useState<Break[]>([])
+  // DISABLED - State variables for Clock In/Out features
+  // const [activeSession, setActiveSession] = useState<Session | null>(null)
+  // const [activeBreak, setActiveBreak] = useState<Break | null>(null)
+  // const [breaks, setBreaks] = useState<Break[]>([])
   const [currentTime, setCurrentTime] = useState(new Date())
-  const [description, setDescription] = useState('')
+  // const [description, setDescription] = useState('')
   const [loading, setLoading] = useState(true)
-  const [actionLoading, setActionLoading] = useState(false)
+  // const [actionLoading, setActionLoading] = useState(false)
   const [isOnline, setIsOnline] = useState(true)
   const [hasPendingSync, setHasPendingSync] = useState(false)
   
@@ -44,7 +85,8 @@ export default function TrackerScreen() {
     type: 'info',
   })
 
-  const [timeOutConfirmVisible, setTimeOutConfirmVisible] = useState(false)
+  // DISABLED - Modal for Time Out confirmation
+  // const [timeOutConfirmVisible, setTimeOutConfirmVisible] = useState(false)
 
   // Monitor network status
   useEffect(() => {
@@ -77,12 +119,15 @@ export default function TrackerScreen() {
     checkPendingSync()
   }, [])
 
-  // Load active session on mount and when screen focuses
+  // DISABLED - Load active session on mount and when screen focuses
+  // (Not needed for Manual Entry only mode)
+  /*
   useFocusEffect(
     useCallback(() => {
       loadActiveSession()
     }, [user?.id])
   )
+  */
 
   const checkPendingSync = async () => {
     const pending = await OfflineService.getPendingActions()
@@ -93,13 +138,15 @@ export default function TrackerScreen() {
     try {
       await SessionService.syncPendingActions()
       setHasPendingSync(false)
-      await loadActiveSession()
+      // DISABLED - No need to reload active session for Manual Entry only mode
+      // await loadActiveSession()
       showModal('Sync Complete', 'All data has been synced successfully', 'success')
     } catch (error) {
       console.error('❌ Sync failed:', error)
     }
   }
 
+  /* DISABLED - Load Active Session Function
   const loadActiveSession = async () => {
     if (!user?.id) {
       setLoading(false)
@@ -141,6 +188,7 @@ export default function TrackerScreen() {
       checkPendingSync()
     }
   }
+  */
 
   const showModal = (
     title: string,
@@ -162,6 +210,12 @@ export default function TrackerScreen() {
     })
   }
 
+  // ============================================================
+  // CLOCK IN/OUT FEATURES - TEMPORARILY DISABLED
+  // TODO: Re-enable these features once Clock In issues are resolved
+  // ============================================================
+  
+  /* DISABLED - Clock In Feature
   const handleTimeIn = async () => {
     if (!user?.id) {
       showModal('Error', 'User not found. Please log in again.', 'error')
@@ -202,7 +256,9 @@ export default function TrackerScreen() {
       setActionLoading(false)
     }
   }
+  */
 
+  /* DISABLED - Clock Out Feature
   const handleTimeOut = async () => {
     if (!activeSession || !user?.id) return
 
@@ -267,18 +323,27 @@ export default function TrackerScreen() {
       setBreaks([])
       setDescription('')
       
-      // Show success message
+      // Show success message with navigation option
       const message = isOnline
         ? `Session completed: ${totalHours.toFixed(2)} hours worked`
         : `Session saved locally. Will sync when online.`
       
-      showModal('Time Out Successful! 🎉', message, 'success')
-      
-      // Navigate to logs after a short delay
-      setTimeout(() => {
-        console.log('📋 Navigating to activity logs...')
-        router.push('/(app)/(logs)')
-      }, 2000)
+      Alert.alert(
+        'Time Out Successful! 🎉',
+        message,
+        [
+          {
+            text: 'View in Activity Logs',
+            onPress: () => {
+              router.push('/(app)/(logs)')
+            },
+          },
+          {
+            text: 'Stay Here',
+            style: 'cancel',
+          },
+        ]
+      )
       
     } catch (error: any) {
       console.error('❌ Time Out error:', error)
@@ -287,7 +352,9 @@ export default function TrackerScreen() {
       setActionLoading(false)
     }
   }
+  */
 
+  /* DISABLED - Break Features
   const handleStartBreak = async () => {
     if (!activeSession || activeBreak) return
 
@@ -384,11 +451,14 @@ export default function TrackerScreen() {
       setActionLoading(false)
     }
   }
+  */
 
   // ===================================
-  // FORCE RESET / DELETE HANDLERS
+  // FORCE RESET / DELETE HANDLERS - DISABLED
+  // (Depends on active sessions from Clock In)
   // ===================================
 
+  /* DISABLED - Force Reset Functions
   const handleForceReset = async () => {
     if (!activeSession) {
       showModal('No Session', 'No active session to delete', 'error')
@@ -491,7 +561,14 @@ export default function TrackerScreen() {
       ]
     )
   }
+  */
 
+  // ===================================
+  // HELPER FUNCTIONS - DISABLED
+  // (Used for displaying active session data)
+  // ===================================
+
+  /* DISABLED - Time Calculation Functions
   // Calculate elapsed time
   const getElapsedTime = () => {
     if (!activeSession) return '00:00:00'
@@ -566,6 +643,15 @@ export default function TrackerScreen() {
     const secs = seconds % 60
     return `${mins}m ${secs}s`
   }
+  */
+  // ============================================================
+  // END OF DISABLED CLOCK IN/OUT FEATURES
+  // ============================================================
+
+  // Set loading to false immediately since we don't need to load active sessions
+  useEffect(() => {
+    setLoading(false)
+  }, [])
 
   if (loading) {
     return (
@@ -642,11 +728,7 @@ export default function TrackerScreen() {
             Time Tracker
           </ThemedText>
           <ThemedText variant="secondary" style={{ fontSize: 14 }}>
-            {activeSession 
-              ? activeBreak 
-                ? '☕ On break' 
-                : '⏱️ Session in progress'
-              : 'Tap Time In to start your OJT session'}
+            Use Manual Time Entry to record your OJT hours
           </ThemedText>
         </View>
 
@@ -670,14 +752,14 @@ export default function TrackerScreen() {
           </View>
         </ThemedCard>
 
-        {/* Session Status Card */}
+        {/* Manual Time Entry Promotion Card */}
         <ThemedCard
           style={{
             marginBottom: 24,
             padding: 32,
-            backgroundColor: activeSession ? colors.accent + '15' : colors.card,
-            borderWidth: activeSession ? 2 : 0,
-            borderColor: activeSession ? colors.accent : 'transparent',
+            backgroundColor: colors.accent + '10',
+            borderWidth: 2,
+            borderColor: colors.accent,
           }}
         >
           <View style={{ alignItems: 'center' }}>
@@ -692,25 +774,13 @@ export default function TrackerScreen() {
                 alignItems: 'center',
                 marginBottom: 24,
                 borderWidth: 4,
-                borderColor: activeSession 
-                  ? activeBreak 
-                    ? '#faa81a' 
-                    : colors.accent 
-                  : colors.border,
+                borderColor: colors.accent,
               }}
             >
               <Ionicons
-                name={activeSession 
-                  ? activeBreak 
-                    ? 'cafe' 
-                    : 'checkmark-circle' 
-                  : 'time-outline'}
+                name="create-outline"
                 size={56}
-                color={activeSession 
-                  ? activeBreak 
-                    ? '#faa81a' 
-                    : colors.accent 
-                  : colors.textSecondary}
+                color={colors.accent}
               />
             </View>
 
@@ -720,396 +790,87 @@ export default function TrackerScreen() {
               style={{
                 fontSize: 24,
                 marginBottom: 8,
-                color: activeSession 
-                  ? activeBreak 
-                    ? '#faa81a' 
-                    : colors.accent 
-                  : colors.text,
+                color: colors.accent,
+                textAlign: 'center',
               }}
             >
-              {activeSession 
-                ? activeBreak 
-                  ? 'On Break' 
-                  : 'Clocked In' 
-                : 'Ready to Start'}
+              Manual Time Entry Only
             </ThemedText>
 
-            {activeSession ? (
-              <>
-                <ThemedText variant="secondary" style={{ fontSize: 14, marginBottom: 24 }}>
-                  Started at{' '}
-                  {format12Hour(new Date(`${activeSession.date}T${activeSession.start_time}`))}
-                </ThemedText>
-
-                {/* Elapsed Time */}
-                <View
-                  style={{
-                    backgroundColor: colors.background,
-                    padding: 20,
-                    borderRadius: 12,
-                    marginBottom: 16,
-                    width: '100%',
-                  }}
-                >
-                  <ThemedText
-                    variant="secondary"
-                    style={{ fontSize: 12, textAlign: 'center', marginBottom: 8 }}
-                  >
-                    {activeBreak ? 'Work Time (excluding break)' : 'Work Time'}
-                  </ThemedText>
-                  <ThemedText
-                    weight="bold"
-                    style={{
-                      fontSize: 40,
-                      textAlign: 'center',
-                      fontVariant: ['tabular-nums'],
-                      color: activeBreak ? colors.textSecondary : colors.accent,
-                    }}
-                  >
-                    {getElapsedTime()}
-                  </ThemedText>
-                  <ThemedText
-                    variant="secondary"
-                    style={{ fontSize: 14, textAlign: 'center', marginTop: 8 }}
-                  >
-                    {getElapsedHours().toFixed(2)} hours
-                  </ThemedText>
-                </View>
-
-                {/* Break Time Display */}
-                {breaks.length > 0 && (
-                  <View
-                    style={{
-                      backgroundColor: '#faa81a20',
-                      padding: 16,
-                      borderRadius: 12,
-                      marginBottom: 24,
-                      width: '100%',
-                    }}
-                  >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-                      <Ionicons name="cafe" size={20} color="#faa81a" style={{ marginRight: 8 }} />
-                      <ThemedText variant="secondary" style={{ fontSize: 12 }}>
-                        Total Break Time: {formatBreakTime(getTotalBreakTime())}
-                      </ThemedText>
-                    </View>
-                  </View>
-                )}
-
-                {/* Minimum Time Warning */}
-                {!activeBreak && (() => {
-                  const workDuration = SessionService.getSessionWorkDuration(activeSession, breaks)
-                  const minRequired = 15 // 15 minutes
-                  
-                  if (workDuration < minRequired) {
-                    const remaining = minRequired - workDuration
-                    return (
-                      <View
-                        style={{
-                          backgroundColor: '#faa81a20',
-                          padding: 12,
-                          borderRadius: 8,
-                          marginBottom: 12,
-                          width: '100%',
-                        }}
-                      >
-                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-                          <Ionicons name="time-outline" size={16} color="#faa81a" style={{ marginRight: 6 }} />
-                          <ThemedText style={{ fontSize: 12, color: '#faa81a' }}>
-                            Work {remaining} more minute{remaining !== 1 ? 's' : ''} to enable Time Out
-                          </ThemedText>
-                        </View>
-                      </View>
-                    )
-                  }
-                  return null
-                })()}
-
-                {/* Action Buttons */}
-                <View style={{ width: '100%', gap: 12 }}>
-                  {activeBreak ? (
-                    <Button
-                      onPress={handleEndBreak}
-                      loading={actionLoading}
-                      disabled={actionLoading}
-                      style={{ backgroundColor: '#3ba55d', borderColor: '#3ba55d' }}
-                    >
-                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-                        <Ionicons name="checkmark-circle" size={20} color="#fff" style={{ marginRight: 8 }} />
-                        <ThemedText weight="bold" style={{ color: '#fff', fontSize: 16 }}>
-                          End Break
-                        </ThemedText>
-                      </View>
-                    </Button>
-                  ) : (
-                    <Button
-                      onPress={handleStartBreak}
-                      loading={actionLoading}
-                      disabled={actionLoading}
-                      variant="outline"
-                      style={{ borderColor: '#faa81a' }}
-                    >
-                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-                        <Ionicons name="cafe" size={20} color="#faa81a" style={{ marginRight: 8 }} />
-                        <ThemedText weight="bold" style={{ color: '#faa81a', fontSize: 16 }}>
-                          Start Break
-                        </ThemedText>
-                      </View>
-                    </Button>
-                  )}
-
-                  <Button
-                    onPress={handleTimeOut}
-                    loading={actionLoading}
-                    disabled={actionLoading || !!activeBreak}
-                    style={{
-                      backgroundColor: '#ed4245',
-                      borderColor: '#ed4245',
-                      opacity: activeBreak ? 0.5 : 1,
-                    }}
-                  >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-                      <Ionicons name="log-out" size={20} color="#fff" style={{ marginRight: 8 }} />
-                      <ThemedText weight="bold" style={{ color: '#fff', fontSize: 16 }}>
-                        Time Out
-                      </ThemedText>
-                    </View>
-                  </Button>
-
-                  {/* Force Delete Session Button */}
-                  <Button
-                    variant="outline"
-                    onPress={handleForceReset}
-                    disabled={actionLoading}
-                    style={{
-                      borderColor: '#ed4245',
-                      marginTop: 4,
-                      opacity: actionLoading ? 0.5 : 1,
-                    }}
-                  >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-                      <Ionicons name="trash-outline" size={20} color="#ed4245" style={{ marginRight: 8 }} />
-                      <ThemedText weight="bold" style={{ color: '#ed4245', fontSize: 14 }}>
-                        Force Delete Session
-                      </ThemedText>
-                    </View>
-                  </Button>
-                </View>
-              </>
-            ) : (
-              <>
-                {/* Description Input */}
-                <View style={{ width: '100%', marginBottom: 24 }}>
-                  <ThemedText variant="secondary" style={{ fontSize: 12, marginBottom: 8 }}>
-                    Task Description (Optional)
-                  </ThemedText>
-                  <TextInput
-                    style={{
-                      backgroundColor: colors.background,
-                      borderWidth: 1,
-                      borderColor: colors.border,
-                      borderRadius: 8,
-                      padding: 12,
-                      color: colors.text,
-                      fontSize: 14,
-                      minHeight: 80,
-                      textAlignVertical: 'top',
-                    }}
-                    placeholder="What are you working on today?"
-                    placeholderTextColor={colors.textSecondary}
-                    value={description}
-                    onChangeText={setDescription}
-                    multiline
-                  />
-                </View>
-
-                <Button 
-                  onPress={handleTimeIn} 
-                  loading={actionLoading}
-                  disabled={actionLoading}
-                  style={{ width: '100%' }}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-                    <Ionicons name="log-in" size={20} color="#fff" style={{ marginRight: 8 }} />
-                    <ThemedText weight="bold" style={{ color: '#fff', fontSize: 16 }}>
-                      Time In
-                    </ThemedText>
-                  </View>
-                </Button>
-
-                {/* Clean Up Stuck Sessions Button */}
-                <Button
-                  variant="outline"
-                  onPress={handleCleanupStaleSessions}
-                  disabled={actionLoading}
-                  style={{
-                    borderColor: '#ed4245',
-                    marginTop: 12,
-                    opacity: actionLoading ? 0.5 : 1,
-                  }}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-                    <Ionicons name="trash-bin" size={20} color="#ed4245" style={{ marginRight: 8 }} />
-                    <ThemedText weight="bold" style={{ color: '#ed4245', fontSize: 14 }}>
-                      Clean Up All Stuck Sessions
-                    </ThemedText>
-                  </View>
-                </Button>
-              </>
-            )}
-          </View>
-        </ThemedCard>
-
-        {/* Session Details */}
-        {activeSession && (
-          <ThemedCard style={{ padding: 20, marginBottom: 24 }}>
-            <ThemedText weight="bold" style={{ fontSize: 18, marginBottom: 16 }}>
-              Session Details
+            <ThemedText variant="secondary" style={{ fontSize: 14, marginBottom: 24, textAlign: 'center' }}>
+              Clock In/Out features are temporarily disabled. Please use Manual Time Entry to record your hours.
             </ThemedText>
 
-            <View style={{ gap: 12 }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Ionicons name="calendar-outline" size={20} color={colors.textSecondary} style={{ marginRight: 8 }} />
-                  <ThemedText variant="secondary">Date</ThemedText>
-                </View>
-                <ThemedText weight="semibold">
-                  {new Date(activeSession.date).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                  })}
-                </ThemedText>
-              </View>
-
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Ionicons name="time-outline" size={20} color={colors.textSecondary} style={{ marginRight: 8 }} />
-                  <ThemedText variant="secondary">Time In</ThemedText>
-                </View>
-                <ThemedText weight="semibold">
-                  {format12Hour(new Date(`${activeSession.date}T${activeSession.start_time}`))}
-                </ThemedText>
-              </View>
-
-              {breaks.length > 0 && (
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Ionicons name="cafe-outline" size={20} color={colors.textSecondary} style={{ marginRight: 8 }} />
-                    <ThemedText variant="secondary">Breaks Taken</ThemedText>
-                  </View>
-                  <ThemedText weight="semibold">{breaks.length}</ThemedText>
-                </View>
-              )}
-
-              {activeSession.description && (
-                <View
-                  style={{
-                    paddingTop: 12,
-                    marginTop: 12,
-                    borderTopWidth: 1,
-                    borderTopColor: colors.border,
-                  }}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-                    <Ionicons
-                      name="document-text-outline"
-                      size={20}
-                      color={colors.textSecondary}
-                      style={{ marginRight: 8, marginTop: 2 }}
-                    />
-                    <View style={{ flex: 1 }}>
-                      <ThemedText variant="secondary" style={{ fontSize: 12, marginBottom: 4 }}>
-                        Description
-                      </ThemedText>
-                      <ThemedText style={{ fontSize: 14 }}>{activeSession.description}</ThemedText>
-                    </View>
-                  </View>
-                </View>
-              )}
-            </View>
-          </ThemedCard>
-        )}
-
-        {/* Instructions */}
-        {!activeSession && (
-          <>
-          <ThemedCard style={{ padding: 20, backgroundColor: colors.accent + '10' }}>
-            <View style={{ flexDirection: 'row', marginBottom: 16 }}>
-              <Ionicons name="information-circle" size={24} color={colors.accent} style={{ marginRight: 12 }} />
-              <ThemedText weight="bold" style={{ fontSize: 16 }}>
-                How It Works
-              </ThemedText>
-            </View>
-
-            <View style={{ gap: 12 }}>
-              <View style={{ flexDirection: 'row' }}>
-                <ThemedText variant="secondary" style={{ marginRight: 8 }}>1.</ThemedText>
-                <ThemedText variant="secondary" style={{ flex: 1 }}>
-                  Tap "Time In" when you arrive at your OJT workplace
-                </ThemedText>
-              </View>
-              <View style={{ flexDirection: 'row' }}>
-                <ThemedText variant="secondary" style={{ marginRight: 8 }}>2.</ThemedText>
-                <ThemedText variant="secondary" style={{ flex: 1 }}>
-                  Use "Start Break" for lunch or rest periods (after 30 minutes of work)
-                </ThemedText>
-              </View>
-              <View style={{ flexDirection: 'row' }}>
-                <ThemedText variant="secondary" style={{ marginRight: 8 }}>3.</ThemedText>
-                <ThemedText variant="secondary" style={{ flex: 1 }}>
-                  "End Break" when you resume work (minimum 1 minute)
-                </ThemedText>
-              </View>
-              <View style={{ flexDirection: 'row' }}>
-                <ThemedText variant="secondary" style={{ marginRight: 8 }}>4.</ThemedText>
-                <ThemedText variant="secondary" style={{ flex: 1 }}>
-                  Tap "Time Out" when you finish (minimum 15 minutes of work)
-                </ThemedText>
-              </View>
-              <View style={{ flexDirection: 'row' }}>
-                <ThemedText variant="secondary" style={{ marginRight: 8 }}>💡</ThemedText>
-                <ThemedText variant="secondary" style={{ flex: 1 }}>
-                  Works offline! Your data will sync when you're back online.
-                </ThemedText>
-              </View>
-              <View style={{ flexDirection: 'row' }}>
-                <ThemedText variant="secondary" style={{ marginRight: 8 }}>📝</ThemedText>
-                <ThemedText variant="secondary" style={{ flex: 1 }}>
-                  Forgot to clock in/out? Use "Manual Time Entry" below.
-                </ThemedText>
-              </View>
-            </View>
-          </ThemedCard>
-
-          {/* Manual Entry Card */}
-          <ThemedCard style={{ padding: 20, marginTop: 16, backgroundColor: colors.accent + '05' }}>
-            <View style={{ flexDirection: 'row', marginBottom: 16 }}>
-              <Ionicons name="create" size={24} color={colors.accent} style={{ marginRight: 12 }} />
-              <View style={{ flex: 1 }}>
-                <ThemedText weight="bold" style={{ fontSize: 16, marginBottom: 4 }}>
-                  Manual Time Entry
-                </ThemedText>
-                <ThemedText variant="secondary" style={{ fontSize: 12 }}>
-                  Forgot to clock in or out? Enter your time manually and it will be saved just like an automatic entry.
-                </ThemedText>
-              </View>
-            </View>
+            {/* Manual Entry Button */}
             <Button
               onPress={() => router.push('/modals/manual-entry')}
-              variant="outline"
-              style={{ borderColor: colors.accent }}
+              style={{ width: '100%', backgroundColor: colors.accent, borderColor: colors.accent }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="add-circle" size={20} color={colors.accent} style={{ marginRight: 8 }} />
-                <ThemedText weight="bold" style={{ color: colors.accent, fontSize: 14 }}>
+                <Ionicons name="add-circle" size={20} color="#fff" style={{ marginRight: 8 }} />
+                <ThemedText weight="bold" style={{ color: '#fff', fontSize: 16 }}>
                   Create Manual Entry
                 </ThemedText>
               </View>
             </Button>
-          </ThemedCard>
-          </>
-        )}
+          </View>
+        </ThemedCard>
+
+        {/* Instructions for Manual Time Entry */}
+        <ThemedCard style={{ padding: 20, backgroundColor: colors.accent + '10' }}>
+          <View style={{ flexDirection: 'row', marginBottom: 16 }}>
+            <Ionicons name="information-circle" size={24} color={colors.accent} style={{ marginRight: 12 }} />
+            <ThemedText weight="bold" style={{ fontSize: 16 }}>
+              How to Use Manual Time Entry
+            </ThemedText>
+          </View>
+
+          <View style={{ gap: 12 }}>
+            <View style={{ flexDirection: 'row' }}>
+              <ThemedText variant="secondary" style={{ marginRight: 8 }}>1.</ThemedText>
+              <ThemedText variant="secondary" style={{ flex: 1 }}>
+                Tap "Create Manual Entry" button above
+              </ThemedText>
+            </View>
+            <View style={{ flexDirection: 'row' }}>
+              <ThemedText variant="secondary" style={{ marginRight: 8 }}>2.</ThemedText>
+              <ThemedText variant="secondary" style={{ flex: 1 }}>
+                Select the date when you worked
+              </ThemedText>
+            </View>
+            <View style={{ flexDirection: 'row' }}>
+              <ThemedText variant="secondary" style={{ marginRight: 8 }}>3.</ThemedText>
+              <ThemedText variant="secondary" style={{ flex: 1 }}>
+                Enter your Time In and Time Out
+              </ThemedText>
+            </View>
+            <View style={{ flexDirection: 'row' }}>
+              <ThemedText variant="secondary" style={{ marginRight: 8 }}>4.</ThemedText>
+              <ThemedText variant="secondary" style={{ flex: 1 }}>
+                Optionally add break periods (if any)
+              </ThemedText>
+            </View>
+            <View style={{ flexDirection: 'row' }}>
+              <ThemedText variant="secondary" style={{ marginRight: 8 }}>5.</ThemedText>
+              <ThemedText variant="secondary" style={{ flex: 1 }}>
+                Add a description of what you worked on
+              </ThemedText>
+            </View>
+            <View style={{ flexDirection: 'row' }}>
+              <ThemedText variant="secondary" style={{ marginRight: 8 }}>6.</ThemedText>
+              <ThemedText variant="secondary" style={{ flex: 1 }}>
+                Save and view your entry in Activity Logs
+              </ThemedText>
+            </View>
+            <View style={{ flexDirection: 'row', marginTop: 8, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.border }}>
+              <ThemedText variant="secondary" style={{ marginRight: 8 }}>💡</ThemedText>
+              <ThemedText variant="secondary" style={{ flex: 1 }}>
+                All time entries are saved to your Activity Logs and count toward your required OJT hours
+              </ThemedText>
+            </View>
+          </View>
+        </ThemedCard>
+
       </ScrollView>
 
       <Modal
@@ -1118,30 +879,6 @@ export default function TrackerScreen() {
         message={modal.message}
         type={modal.type}
         onClose={closeModal}
-      />
-
-      {/* Time Out Confirmation Modal */}
-      <Modal
-        visible={timeOutConfirmVisible}
-        title="Confirm Time Out"
-        message="Are you sure you want to end this session? You will be redirected to your activity logs."
-        type="warning"
-        onClose={() => setTimeOutConfirmVisible(false)}
-        actions={[
-          {
-            text: 'Cancel',
-            onPress: () => {
-              console.log('❌ Time Out cancelled')
-              setTimeOutConfirmVisible(false)
-            },
-            variant: 'outline',
-          },
-          {
-            text: 'Time Out',
-            onPress: confirmTimeOut,
-            variant: 'danger',
-          },
-        ]}
       />
     </ThemedView>
   )

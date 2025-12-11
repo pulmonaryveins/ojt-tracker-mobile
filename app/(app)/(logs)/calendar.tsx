@@ -6,9 +6,11 @@ import { ThemedCard } from '../../../components/themed/ThemedCard'
 import { Button } from '../../../components/ui/Button'
 import { useAuthStore } from '../../../stores/auth.store'
 import { SessionService } from '../../../services/session.service'
-import { Session } from '../../../types/models'
+import type { Database } from '../../../types/supabase'
 import { dateUtils } from '../../../utils/timezone'
 import { useTheme } from '../../../hooks/useTheme'
+
+type Session = Database['public']['Tables']['sessions']['Row']
 
 interface DayData {
   date: string
@@ -34,7 +36,9 @@ export default function CalendarScreen() {
     const endDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0)
 
     try {
-      const data = await SessionService.getSessionsByDateRange(user.id, startDate, endDate)
+      const startDateStr = dateUtils.formatPH(startDate, 'yyyy-MM-dd')
+      const endDateStr = dateUtils.formatPH(endDate, 'yyyy-MM-dd')
+      const data = await SessionService.getSessionsByDateRange(user.id, startDateStr, endDateStr)
       setSessions(data)
 
       // Generate calendar data

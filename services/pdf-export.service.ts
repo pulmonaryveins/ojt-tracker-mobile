@@ -112,12 +112,12 @@ export class PDFExportService {
           <div class="section">
             <div class="section-title">⏰ Time Information</div>
             <div class="info-row">
-              <span class="label">Time In:</span>
-              <span class="value">${dateUtils.formatPH(session.time_in, 'hh:mm:ss a')}</span>
+              <span class="label">Start Time:</span>
+              <span class="value">${dateUtils.formatPH(session.start_time, 'hh:mm:ss a')}</span>
             </div>
             <div class="info-row">
-              <span class="label">Time Out:</span>
-              <span class="value">${session.time_out ? dateUtils.formatPH(session.time_out, 'hh:mm:ss a') : 'Not ended'}</span>
+              <span class="label">End Time:</span>
+              <span class="value">${session.end_time ? dateUtils.formatPH(session.end_time, 'hh:mm:ss a') : 'Not ended'}</span>
             </div>
             <div class="info-row">
               <span class="label">Total Hours:</span>
@@ -125,37 +125,10 @@ export class PDFExportService {
             </div>
           </div>
 
-          ${session.breaks.length > 0 ? `
+          ${session.description ? `
             <div class="section">
-              <div class="section-title">☕ Breaks (${session.breaks.length})</div>
-              ${session.breaks.map((br, index) => `
-                <div class="break-item">
-                  <strong>Break ${index + 1}:</strong>
-                  ${dateUtils.formatPH(br.start, 'hh:mm a')} - 
-                  ${br.end ? dateUtils.formatPH(br.end, 'hh:mm a') : 'Ongoing'}
-                </div>
-              `).join('')}
-            </div>
-          ` : ''}
-
-          ${session.tasks ? `
-            <div class="section">
-              <div class="section-title">📝 Tasks Completed</div>
-              <p class="content-text">${session.tasks}</p>
-            </div>
-          ` : ''}
-
-          ${session.lessons_learned ? `
-            <div class="section">
-              <div class="section-title">💡 Lessons Learned</div>
-              <p class="content-text">${session.lessons_learned}</p>
-            </div>
-          ` : ''}
-
-          ${session.notes ? `
-            <div class="section">
-              <div class="section-title">📌 Notes</div>
-              <p class="content-text">${session.notes}</p>
+              <div class="section-title">📝 Description</div>
+              <p class="content-text">${session.description}</p>
             </div>
           ` : ''}
 
@@ -170,7 +143,6 @@ export class PDFExportService {
 
   private static generateMultipleSessionsHTML(sessions: Session[]): string {
     const totalHours = sessions.reduce((sum, s) => sum + s.total_hours, 0)
-    const totalBreaks = sessions.reduce((sum, s) => sum + s.breaks.length, 0)
     
     return `
       <!DOCTYPE html>
@@ -281,10 +253,6 @@ export class PDFExportService {
               <div class="stat-label">Total Hours</div>
             </div>
             <div class="stat">
-              <div class="stat-value">${totalBreaks}</div>
-              <div class="stat-label">Total Breaks</div>
-            </div>
-            <div class="stat">
               <div class="stat-value">${(totalHours / sessions.length).toFixed(1)}h</div>
               <div class="stat-label">Avg Hours/Day</div>
             </div>
@@ -296,20 +264,18 @@ export class PDFExportService {
             <thead>
               <tr>
                 <th>Date</th>
-                <th>Time In</th>
-                <th>Time Out</th>
+                <th>Start Time</th>
+                <th>End Time</th>
                 <th>Hours</th>
-                <th>Breaks</th>
               </tr>
             </thead>
             <tbody>
               ${sessions.map(session => `
                 <tr>
                   <td>${dateUtils.formatPH(session.date, 'MMM dd, yyyy')}</td>
-                  <td>${dateUtils.formatPH(session.time_in, 'hh:mm a')}</td>
-                  <td>${session.time_out ? dateUtils.formatPH(session.time_out, 'hh:mm a') : '-'}</td>
+                  <td>${dateUtils.formatPH(session.start_time, 'hh:mm a')}</td>
+                  <td>${session.end_time ? dateUtils.formatPH(session.end_time, 'hh:mm a') : '-'}</td>
                   <td><strong>${session.total_hours.toFixed(2)}h</strong></td>
-                  <td>${session.breaks.length}</td>
                 </tr>
               `).join('')}
             </tbody>
@@ -328,17 +294,10 @@ export class PDFExportService {
                 <div class="session-hours">${session.total_hours.toFixed(2)}h</div>
               </div>
               
-              ${session.tasks ? `
+              ${session.description ? `
                 <div class="session-details">
-                  <strong style="color: #5865f2;">Tasks:</strong>
-                  <p>${session.tasks}</p>
-                </div>
-              ` : ''}
-              
-              ${session.lessons_learned ? `
-                <div class="session-details">
-                  <strong style="color: #5865f2;">Lessons:</strong>
-                  <p>${session.lessons_learned}</p>
+                  <strong style="color: #5865f2;">Description:</strong>
+                  <p>${session.description}</p>
                 </div>
               ` : ''}
             </div>

@@ -23,7 +23,7 @@ const slides: OnboardingSlide[] = [
     id: '1',
     emoji: '⏱️',
     title: 'Track Your Time',
-    description: 'Easily log your OJT hours with our simple time tracker. Clock in, take breaks, and clock out seamlessly.',
+    description: 'Easily log your OJT hours using Manual Time Entry. Record your work sessions with precise start and end times.',
     color: '#5865f2',
   },
   {

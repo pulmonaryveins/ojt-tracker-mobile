@@ -478,6 +478,27 @@ export class SessionService {
   }
 
   /**
+   * Get a single session by ID
+   */
+  static async getSessionById(sessionId: string): Promise<Session> {
+    try {
+      const { data, error } = await supabase
+        .from('sessions')
+        .select('*')
+        .eq('id', sessionId)
+        .single()
+
+      if (error) throw error
+      if (!data) throw new Error('Session not found')
+
+      return data
+    } catch (error) {
+      console.error('Error fetching session:', error)
+      throw error
+    }
+  }
+
+  /**
    * Delete session
    */
   static async deleteSession(sessionId: string): Promise<void> {
@@ -521,6 +542,32 @@ export class SessionService {
   }
 
   /**
+   * Update session
+   */
+  static async updateSession(
+    sessionId: string,
+    updates: SessionUpdate
+  ): Promise<void> {
+    try {
+      // Remove breaks from updates as it doesn't exist in database
+      const { breaks, ...dbUpdates } = updates as any
+      
+      const response = await supabase
+        .from('sessions')
+        .update(dbUpdates)
+        .eq('id', sessionId)
+
+      if (response.error) {
+        console.error('Error updating session:', response.error)
+        throw response.error
+      }
+    } catch (error) {
+      console.error('Error in updateSession:', error)
+      throw error
+    }
+  }
+
+  /**
    * Create manual session entry
    * For students who forgot to clock in/out
    */
@@ -531,12 +578,16 @@ export class SessionService {
     timeOut: string,
     totalHours: number,
     notes: string | null,
-    breaks: Array<{ start_time: string; duration: number }>
+    breaks: Array<{ start: string; end: string | null }> | null
   ): Promise<string> {
     try {
       console.log('📝 Creating manual session entry...')
 
+      // Calculate duration in minutes
+      const duration = Math.floor((new Date(`${date}T${timeOut}`).getTime() - new Date(`${date}T${timeIn}`).getTime()) / (1000 * 60))
+
       // Create the session with status completed
+      // Note: breaks are not stored in database, only used for calculation
       const { data: session, error: sessionError } = await supabase
         .from('sessions')
         .insert({
@@ -544,7 +595,7 @@ export class SessionService {
           date,
           start_time: timeIn,
           end_time: timeOut,
-          duration: Math.floor((new Date(`${date}T${timeOut}`).getTime() - new Date(`${date}T${timeIn}`).getTime()) / 1000),
+          duration,
           total_hours: totalHours,
           description: notes,
         })

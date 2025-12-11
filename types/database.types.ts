@@ -69,43 +69,28 @@ export interface Database {
           id: string
           user_id: string
           date: string
-          time_in: string
-          time_out: string | null
-          breaks: Json
+          start_time: string
+          end_time: string | null
+          duration: number
           total_hours: number
-          status: 'ongoing' | 'on_break' | 'completed' | 'auto_closed'
-          tasks: string | null
-          lessons_learned: string | null
-          notes: string | null
-          image_urls: string[]
-          synced: boolean
-          local_id: string | null
+          description: string | null
           created_at: string
           updated_at: string
         }
         Insert: {
           user_id: string
           date?: string
-          time_in: string
-          time_out?: string | null
-          breaks?: Json
-          status?: 'ongoing' | 'on_break' | 'completed' | 'auto_closed'
-          tasks?: string | null
-          lessons_learned?: string | null
-          notes?: string | null
-          image_urls?: string[]
-          synced?: boolean
-          local_id?: string | null
+          start_time: string
+          end_time?: string | null
+          duration?: number
+          total_hours?: number
+          description?: string | null
         }
         Update: {
-          time_out?: string | null
-          breaks?: Json
-          status?: 'ongoing' | 'on_break' | 'completed' | 'auto_closed'
-          tasks?: string | null
-          lessons_learned?: string | null
-          notes?: string | null
-          image_urls?: string[]
-          synced?: boolean
+          end_time?: string | null
+          duration?: number
+          total_hours?: number
+          description?: string | null
         }
       }
     }

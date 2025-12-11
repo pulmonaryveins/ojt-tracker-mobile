@@ -91,7 +91,8 @@ export default function ManualEntryModal() {
       return false
     }
 
-    const sessionDate = new Date(date).toISOString().split('T')[0]
+    // Extract date directly from ISO string to avoid timezone conversion issues
+    const sessionDate = date.split('T')[0]
     const timeInFormatted = formatTime24(timeIn)
     const timeOutFormatted = formatTime24(timeOut)
 
@@ -208,7 +209,8 @@ export default function ManualEntryModal() {
     try {
       setLoading(true)
 
-      const sessionDate = new Date(date).toISOString().split('T')[0]
+      // Extract date directly from ISO string to avoid timezone conversion issues
+      const sessionDate = date.split('T')[0]
       const timeInFormatted = formatTime24(timeIn)
       const timeOutFormatted = formatTime24(timeOut)
 
@@ -221,8 +223,9 @@ export default function ManualEntryModal() {
       )
 
       // Calculate total break time
+      // Note: breaks are only used for calculation, not stored in database
       let totalBreakSeconds = 0
-      const breakRecords: Array<{ start_time: string; duration: number }> = []
+      const breakRecords: Array<{ start: string; end: string | null }> = []
 
       breaks.forEach(breakItem => {
         if (breakItem.startTime && breakItem.endTime) {
@@ -233,8 +236,8 @@ export default function ManualEntryModal() {
           )
           totalBreakSeconds += breakDurationSeconds
           breakRecords.push({
-            start_time: formatTime24(breakItem.startTime),
-            duration: breakDurationSeconds,
+            start: formatTime24(breakItem.startTime),
+            end: formatTime24(breakItem.endTime),
           })
         }
       })
@@ -259,31 +262,32 @@ export default function ManualEntryModal() {
         timeOutFormatted,
         totalHours,
         description.trim() || null,
-        breakRecords
+        breakRecords.length > 0 ? breakRecords : null
       )
 
       console.log('✅ Manual session created:', sessionId)
 
+      // Close the modal and redirect to Activity Logs
+      setLoading(false)
+      
       Alert.alert(
-        'Success',
-        `Manual time entry saved successfully.\n\n${totalHours.toFixed(2)} hours worked`,
+        'Success! 🎉',
+        `Manual time entry saved successfully.\n\nDate: ${sessionDate}\nHours: ${totalHours.toFixed(2)}`,
         [
           {
-            text: 'Continue to Daily Log',
+            text: 'OK',
             onPress: () => {
-              // Navigate to daily log modal with the session ID
-              router.push({
-                pathname: '/modals/daily-log',
-                params: { sessionId, isManualEntry: 'true' },
-              })
+              router.dismiss()
+              router.push('/(app)/(logs)')
             },
           },
-        ]
+        ],
+        { cancelable: false }
       )
+      return
     } catch (error: any) {
       console.error('❌ Error creating manual entry:', error)
       Alert.alert('Error', error.message || 'Failed to save manual entry')
-    } finally {
       setLoading(false)
     }
   }
@@ -292,7 +296,8 @@ export default function ManualEntryModal() {
     if (!timeIn || !timeOut) return '0.00'
 
     try {
-      const sessionDate = new Date(date).toISOString().split('T')[0]
+      // Extract date directly from ISO string to avoid timezone conversion issues
+      const sessionDate = date.split('T')[0]
       const timeInFormatted = formatTime24(timeIn)
       const timeOutFormatted = formatTime24(timeOut)
 
