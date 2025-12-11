@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { View, ScrollView, Alert, TextInput } from 'react-native'
-import { useFocusEffect } from 'expo-router'
+import { useFocusEffect, useRouter } from 'expo-router'
 import NetInfo from '@react-native-community/netinfo'
 import { Ionicons } from '@expo/vector-icons'
 import { ThemedView } from '../../../components/themed/ThemedView'
@@ -19,6 +19,7 @@ type Break = Database['public']['Tables']['breaks']['Row']
 
 export default function TrackerScreen() {
   const { colors } = useTheme()
+  const router = useRouter()
   const user = useAuthStore((state) => state.user)
   
   const [activeSession, setActiveSession] = useState<Session | null>(null)
@@ -42,6 +43,8 @@ export default function TrackerScreen() {
     message: '',
     type: 'info',
   })
+
+  const [timeOutConfirmVisible, setTimeOutConfirmVisible] = useState(false)
 
   // Monitor network status
   useEffect(() => {
@@ -203,83 +206,86 @@ export default function TrackerScreen() {
   const handleTimeOut = async () => {
     if (!activeSession || !user?.id) return
 
+    console.log('🔘 Time Out button clicked')
+
     // Validate time out
     const validation = SessionService.validateTimeOut(activeSession, breaks)
     if (!validation.valid) {
+      console.log('❌ Validation failed:', validation.error)
       showModal('Cannot Time Out', validation.error!, 'warning')
       return
     }
 
-    Alert.alert(
-      'Time Out',
-      'Are you sure you want to end this session?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Time Out',
-          style: 'default',
-          onPress: async () => {
-            try {
-              setActionLoading(true)
-              
-              const now = new Date()
-              const timeString = now.toTimeString().split(' ')[0]
+    console.log('✅ Validation passed, showing confirmation')
+    // Show confirmation modal
+    setTimeOutConfirmVisible(true)
+  }
 
-              // Calculate total break time
-              const totalBreakSeconds = breaks.reduce((sum, b) => sum + b.duration, 0)
+  const confirmTimeOut = async () => {
+    if (!activeSession || !user?.id) return
 
-              // Calculate work duration
-              const startTime = new Date(`${activeSession.date}T${activeSession.start_time}`)
-              const endTime = new Date(`${activeSession.date}T${timeString}`)
-              const totalDurationSeconds = Math.floor((endTime.getTime() - startTime.getTime()) / 1000)
-              const workDurationSeconds = totalDurationSeconds - totalBreakSeconds
-              const totalHours = workDurationSeconds / 3600
+    try {
+      console.log('⏰ Confirming Time Out...')
+      setTimeOutConfirmVisible(false)
+      setActionLoading(true)
+      
+      const now = new Date()
+      const timeString = now.toTimeString().split(' ')[0]
 
-              console.log('⏰ Time Out:', timeString)
-              console.log('⏱️ Total Duration:', totalDurationSeconds, 'seconds')
-              console.log('☕ Break Time:', totalBreakSeconds, 'seconds')
-              console.log('💼 Work Duration:', workDurationSeconds, 'seconds =', totalHours.toFixed(2), 'hours')
+      // Calculate total break time
+      const totalBreakSeconds = breaks.reduce((sum, b) => sum + b.duration, 0)
 
-              await SessionService.endSession(
-                activeSession.id,
-                timeString,
-                workDurationSeconds,
-                totalHours,
-                description.trim()
-              )
+      // Calculate work duration
+      const startTime = new Date(`${activeSession.date}T${activeSession.start_time}`)
+      const endTime = new Date(`${activeSession.date}T${timeString}`)
+      const totalDurationSeconds = Math.floor((endTime.getTime() - startTime.getTime()) / 1000)
+      const workDurationSeconds = totalDurationSeconds - totalBreakSeconds
+      const totalHours = workDurationSeconds / 3600
 
-              console.log('✅ Session ended')
-              
-              const message = isOnline
-                ? `Session completed: ${totalHours.toFixed(2)} hours worked`
-                : `Session saved locally. Will sync when online.`
-              
-              showModal('Time Out Successful! 🎉', message, 'success')
+      console.log('⏰ Time Out:', timeString)
+      console.log('⏱️ Total Duration:', totalDurationSeconds, 'seconds')
+      console.log('☕ Break Time:', totalBreakSeconds, 'seconds')
+      console.log('💼 Work Duration:', workDurationSeconds, 'seconds =', totalHours.toFixed(2), 'hours')
 
-              if (!isOnline) {
-                setHasPendingSync(true)
-              }
+      await SessionService.endSession(
+        activeSession.id,
+        timeString,
+        workDurationSeconds,
+        totalHours,
+        description.trim()
+      )
 
-              // Reset state
-              setActiveSession(null)
-              setActiveBreak(null)
-              setBreaks([])
-              setDescription('')
-              
-              // Reload
-              setTimeout(() => {
-                loadActiveSession()
-              }, 1000)
-            } catch (error: any) {
-              console.error('❌ Time Out error:', error)
-              showModal('Time Out Failed', error.message || 'Failed to end session', 'error')
-            } finally {
-              setActionLoading(false)
-            }
-          },
-        },
-      ]
-    )
+      console.log('✅ Session ended successfully')
+
+      if (!isOnline) {
+        setHasPendingSync(true)
+      }
+
+      // Reset state
+      setActiveSession(null)
+      setActiveBreak(null)
+      setBreaks([])
+      setDescription('')
+      
+      // Show success message
+      const message = isOnline
+        ? `Session completed: ${totalHours.toFixed(2)} hours worked`
+        : `Session saved locally. Will sync when online.`
+      
+      showModal('Time Out Successful! 🎉', message, 'success')
+      
+      // Navigate to logs after a short delay
+      setTimeout(() => {
+        console.log('📋 Navigating to activity logs...')
+        router.push('/(app)/(logs)')
+      }, 2000)
+      
+    } catch (error: any) {
+      console.error('❌ Time Out error:', error)
+      showModal('Time Out Failed', error.message || 'Failed to end session', 'error')
+    } finally {
+      setActionLoading(false)
+    }
   }
 
   const handleStartBreak = async () => {
@@ -377,6 +383,113 @@ export default function TrackerScreen() {
     } finally {
       setActionLoading(false)
     }
+  }
+
+  // ===================================
+  // FORCE RESET / DELETE HANDLERS
+  // ===================================
+
+  const handleForceReset = async () => {
+    if (!activeSession) {
+      showModal('No Session', 'No active session to delete', 'error')
+      return
+    }
+
+    console.log('🗑️ Force reset initiated for session:', activeSession.id)
+    
+    Alert.alert(
+      'Force Reset Session',
+      `This will permanently delete the session started on ${new Date(activeSession.date).toLocaleDateString()} at ${format12Hour(new Date(`${activeSession.date}T${activeSession.start_time}`))}.\n\nAre you sure?`,
+      [
+        { 
+          text: 'Cancel', 
+          style: 'cancel',
+          onPress: () => console.log('❌ Force reset cancelled')
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              console.log('🗑️ Starting force delete...')
+              setActionLoading(true)
+              
+              const sessionId = activeSession.id
+              console.log('Session ID to delete:', sessionId)
+              
+              // Force delete from database
+              await SessionService.forceResetCurrentSession(sessionId)
+              
+              console.log('✅ Database deletion complete, clearing local state...')
+              
+              // Reset state
+              setActiveSession(null)
+              setActiveBreak(null)
+              setBreaks([])
+              setDescription('')
+              setHasPendingSync(false)
+              
+              console.log('✅ Local state cleared')
+              
+              showModal('Session Deleted', 'The stuck session has been removed successfully.', 'success')
+              
+              // Reload to verify deletion
+              setTimeout(() => {
+                console.log('🔄 Reloading session data...')
+                loadActiveSession()
+              }, 1500)
+              
+            } catch (error: any) {
+              console.error('❌ Force reset error:', error)
+              console.error('Error details:', JSON.stringify(error, null, 2))
+              showModal('Delete Failed', error.message || 'Failed to delete session. Check console for details.', 'error')
+            } finally {
+              setActionLoading(false)
+            }
+          },
+        },
+      ]
+    )
+  }
+
+  const handleCleanupStaleSessions = async () => {
+    Alert.alert(
+      'Clean Up Stuck Sessions',
+      'This will delete ALL open sessions (sessions with no end time) from the database. Continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clean Up',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setActionLoading(true)
+              const count = await SessionService.cleanupStaleSessions(user!.id)
+              
+              if (count > 0) {
+                // Clear local state
+                await OfflineService.clearActiveSessionLocally()
+                setActiveSession(null)
+                setActiveBreak(null)
+                setBreaks([])
+                setDescription('')
+                setHasPendingSync(false)
+                
+                showModal('Success', `Deleted ${count} stuck session(s)`, 'success')
+                await loadActiveSession()
+              } else {
+                showModal('Info', 'No stuck sessions found', 'info')
+              }
+            } catch (error: any) {
+              console.error('❌ Cleanup error:', error)
+              showModal('Error', 'Failed to clean up sessions', 'error')
+            } finally {
+              setActionLoading(false)
+            }
+          },
+        },
+      ]
+    )
   }
 
   // Calculate elapsed time
@@ -762,6 +875,25 @@ export default function TrackerScreen() {
                       </ThemedText>
                     </View>
                   </Button>
+
+                  {/* Force Delete Session Button */}
+                  <Button
+                    variant="outline"
+                    onPress={handleForceReset}
+                    disabled={actionLoading}
+                    style={{
+                      borderColor: '#ed4245',
+                      marginTop: 4,
+                      opacity: actionLoading ? 0.5 : 1,
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                      <Ionicons name="trash-outline" size={20} color="#ed4245" style={{ marginRight: 8 }} />
+                      <ThemedText weight="bold" style={{ color: '#ed4245', fontSize: 14 }}>
+                        Force Delete Session
+                      </ThemedText>
+                    </View>
+                  </Button>
                 </View>
               </>
             ) : (
@@ -801,6 +933,25 @@ export default function TrackerScreen() {
                     <Ionicons name="log-in" size={20} color="#fff" style={{ marginRight: 8 }} />
                     <ThemedText weight="bold" style={{ color: '#fff', fontSize: 16 }}>
                       Time In
+                    </ThemedText>
+                  </View>
+                </Button>
+
+                {/* Clean Up Stuck Sessions Button */}
+                <Button
+                  variant="outline"
+                  onPress={handleCleanupStaleSessions}
+                  disabled={actionLoading}
+                  style={{
+                    borderColor: '#ed4245',
+                    marginTop: 12,
+                    opacity: actionLoading ? 0.5 : 1,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name="trash-bin" size={20} color="#ed4245" style={{ marginRight: 8 }} />
+                    <ThemedText weight="bold" style={{ color: '#ed4245', fontSize: 14 }}>
+                      Clean Up All Stuck Sessions
                     </ThemedText>
                   </View>
                 </Button>
@@ -882,6 +1033,7 @@ export default function TrackerScreen() {
 
         {/* Instructions */}
         {!activeSession && (
+          <>
           <ThemedCard style={{ padding: 20, backgroundColor: colors.accent + '10' }}>
             <View style={{ flexDirection: 'row', marginBottom: 16 }}>
               <Ionicons name="information-circle" size={24} color={colors.accent} style={{ marginRight: 12 }} />
@@ -921,8 +1073,42 @@ export default function TrackerScreen() {
                   Works offline! Your data will sync when you're back online.
                 </ThemedText>
               </View>
+              <View style={{ flexDirection: 'row' }}>
+                <ThemedText variant="secondary" style={{ marginRight: 8 }}>📝</ThemedText>
+                <ThemedText variant="secondary" style={{ flex: 1 }}>
+                  Forgot to clock in/out? Use "Manual Time Entry" below.
+                </ThemedText>
+              </View>
             </View>
           </ThemedCard>
+
+          {/* Manual Entry Card */}
+          <ThemedCard style={{ padding: 20, marginTop: 16, backgroundColor: colors.accent + '05' }}>
+            <View style={{ flexDirection: 'row', marginBottom: 16 }}>
+              <Ionicons name="create" size={24} color={colors.accent} style={{ marginRight: 12 }} />
+              <View style={{ flex: 1 }}>
+                <ThemedText weight="bold" style={{ fontSize: 16, marginBottom: 4 }}>
+                  Manual Time Entry
+                </ThemedText>
+                <ThemedText variant="secondary" style={{ fontSize: 12 }}>
+                  Forgot to clock in or out? Enter your time manually and it will be saved just like an automatic entry.
+                </ThemedText>
+              </View>
+            </View>
+            <Button
+              onPress={() => router.push('/modals/manual-entry')}
+              variant="outline"
+              style={{ borderColor: colors.accent }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="add-circle" size={20} color={colors.accent} style={{ marginRight: 8 }} />
+                <ThemedText weight="bold" style={{ color: colors.accent, fontSize: 14 }}>
+                  Create Manual Entry
+                </ThemedText>
+              </View>
+            </Button>
+          </ThemedCard>
+          </>
         )}
       </ScrollView>
 
@@ -932,6 +1118,30 @@ export default function TrackerScreen() {
         message={modal.message}
         type={modal.type}
         onClose={closeModal}
+      />
+
+      {/* Time Out Confirmation Modal */}
+      <Modal
+        visible={timeOutConfirmVisible}
+        title="Confirm Time Out"
+        message="Are you sure you want to end this session? You will be redirected to your activity logs."
+        type="warning"
+        onClose={() => setTimeOutConfirmVisible(false)}
+        actions={[
+          {
+            text: 'Cancel',
+            onPress: () => {
+              console.log('❌ Time Out cancelled')
+              setTimeOutConfirmVisible(false)
+            },
+            variant: 'outline',
+          },
+          {
+            text: 'Time Out',
+            onPress: confirmTimeOut,
+            variant: 'danger',
+          },
+        ]}
       />
     </ThemedView>
   )

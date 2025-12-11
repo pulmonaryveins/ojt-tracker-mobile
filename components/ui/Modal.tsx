@@ -4,16 +4,23 @@ import { ThemedText } from '../themed/ThemedText'
 import { Button } from './Button'
 import { useTheme } from '../../hooks/useTheme'
 
+interface ModalAction {
+  text: string
+  onPress: () => void
+  variant?: 'primary' | 'secondary' | 'outline' | 'danger'
+}
+
 interface ModalProps {
   visible: boolean
   title: string
   message: string
   type: 'success' | 'error' | 'warning' | 'info'
-  icon?: string  // ✅ ADD THIS
+  icon?: string
   onClose: () => void
+  actions?: ModalAction[]
 }
 
-export function Modal({ visible, title, message, type, icon, onClose }: ModalProps) {
+export function Modal({ visible, title, message, type, icon, onClose, actions }: ModalProps) {
   const { colors } = useTheme()
 
   const iconColors = {
@@ -81,11 +88,27 @@ export function Modal({ visible, title, message, type, icon, onClose }: ModalPro
             </ThemedText>
           </View>
 
-          <Button onPress={onClose}>
-            <ThemedText weight="semibold" style={{ color: '#fff' }}>
-              Close
-            </ThemedText>
-          </Button>
+          {actions && actions.length > 0 ? (
+            <View style={{ gap: 12 }}>
+              {actions.map((action, index) => (
+                <Button
+                  key={index}
+                  onPress={action.onPress}
+                  variant={action.variant || 'primary'}
+                >
+                  <ThemedText weight="semibold" style={{ color: action.variant === 'outline' ? colors.text : '#fff' }}>
+                    {action.text}
+                  </ThemedText>
+                </Button>
+              ))}
+            </View>
+          ) : (
+            <Button onPress={onClose}>
+              <ThemedText weight="semibold" style={{ color: '#fff' }}>
+                Close
+              </ThemedText>
+            </Button>
+          )}
         </Pressable>
       </Pressable>
     </RNModal>

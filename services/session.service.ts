@@ -521,6 +521,85 @@ export class SessionService {
   }
 
   /**
+   * Create manual session entry
+   * For students who forgot to clock in/out
+   */
+  static async createManualSession(
+    userId: string,
+    date: string,
+    startTime: string,
+    endTime: string,
+    duration: number,
+    totalHours: number,
+    description: string | null,
+    breaks: Array<{ start_time: string; duration: number }>
+  ): Promise<string> {
+    try {
+      console.log('📝 Creating manual session entry...')
+
+      // Create the session
+      const { data: session, error: sessionError } = await supabase
+        .from('sessions')
+        .insert({
+          user_id: userId,
+          date,
+          start_time: startTime,
+          end_time: endTime,
+          duration,
+          total_hours: totalHours,
+          description,
+        })
+        .select()
+        .single()
+
+      if (sessionError) {
+        console.error('Error creating manual session:', sessionError)
+        throw sessionError
+      }
+
+      console.log('✅ Manual session created:', session.id)
+
+      // Create breaks if any
+      if (breaks.length > 0) {
+        console.log('📝 Creating breaks for manual session...')
+        
+        const breaksToInsert = breaks.map(breakItem => ({
+          session_id: session.id,
+          start_time: breakItem.start_time,
+          end_time: breakItem.start_time, // Will be updated with calculated end time
+          duration: breakItem.duration,
+        }))
+
+        // Calculate end times for breaks
+        const breaksWithEndTimes = breaksToInsert.map(b => {
+          const breakStart = new Date(`${date}T${b.start_time}`)
+          const breakEnd = new Date(breakStart.getTime() + b.duration * 1000)
+          return {
+            ...b,
+            end_time: breakEnd.toTimeString().split(' ')[0],
+          }
+        })
+
+        const { error: breaksError } = await supabase
+          .from('breaks')
+          .insert(breaksWithEndTimes)
+
+        if (breaksError) {
+          console.error('Error creating breaks:', breaksError)
+          // Don't throw, session is already created
+        } else {
+          console.log(`✅ Created ${breaks.length} break(s) for manual session`)
+        }
+      }
+
+      return session.id
+    } catch (error) {
+      console.error('❌ Error creating manual session:', error)
+      throw error
+    }
+  }
+
+  /**
    * Get total hours for user
    */
   static async getTotalHours(userId: string): Promise<number> {
@@ -607,6 +686,147 @@ export class SessionService {
   }
 
   // ===================================
+  // FORCE DELETE / RESET METHODS
+  // ===================================
+
+  /**
+   * Force delete a session (for stuck sessions)
+   * Deletes breaks first, then the session
+   */
+  static async forceDeleteSession(sessionId: string): Promise<void> {
+    try {
+      console.log('🗑️ Force deleting session:', sessionId)
+      
+      // Check if session exists first
+      const { data: sessionCheck, error: checkError } = await supabase
+        .from('sessions')
+        .select('id')
+        .eq('id', sessionId)
+        .maybeSingle()
+      
+      if (checkError) {
+        console.error('Error checking session:', checkError)
+        throw new Error(`Failed to verify session: ${checkError.message}`)
+      }
+      
+      if (!sessionCheck) {
+        console.log('⚠️ Session not found in database, may already be deleted')
+        return
+      }
+      
+      console.log('✅ Session found, proceeding with deletion...')
+      
+      // Delete associated breaks first
+      console.log('🗑️ Deleting breaks for session...')
+      const { error: breaksError } = await supabase
+        .from('breaks')
+        .delete()
+        .eq('session_id', sessionId)
+      
+      if (breaksError) {
+        console.error('⚠️ Error deleting breaks (continuing anyway):', breaksError)
+        // Don't throw, continue with session deletion
+      } else {
+        console.log('✅ Breaks deleted successfully')
+      }
+      
+      // Delete the session
+      console.log('🗑️ Deleting session from database...')
+      const { error } = await supabase
+        .from('sessions')
+        .delete()
+        .eq('id', sessionId)
+      
+      if (error) {
+        console.error('❌ Error deleting session:', error)
+        throw new Error(`Failed to delete session: ${error.message}`)
+      }
+      
+      console.log('✅ Session force deleted successfully from database')
+    } catch (error: any) {
+      console.error('❌ Error force deleting session:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Clean up all stale sessions (sessions with no end_time)
+   * Useful for cleaning up stuck sessions from database
+   */
+  static async cleanupStaleSessions(userId: string): Promise<number> {
+    try {
+      console.log('🧹 Cleaning up stale sessions...')
+      
+      // Get all sessions with no end_time
+      const { data, error } = await supabase
+        .from('sessions')
+        .select('id')
+        .eq('user_id', userId)
+        .is('end_time', null)
+      
+      if (error) throw error
+      
+      if (data && data.length > 0) {
+        console.log(`Found ${data.length} stale session(s)`)
+        
+        for (const session of data) {
+          await this.forceDeleteSession(session.id)
+        }
+        
+        console.log(`✅ Cleaned up ${data.length} stale sessions`)
+        return data.length
+      }
+      
+      console.log('No stale sessions found')
+      return 0
+    } catch (error) {
+      console.error('❌ Error cleaning up stale sessions:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Force reset current session (delete from database and clear local storage)
+   */
+  static async forceResetCurrentSession(sessionId: string): Promise<void> {
+    try {
+      console.log('🔄 Force resetting current session:', sessionId)
+      
+      // Delete from database if it has a real ID (not temp)
+      if (!sessionId.startsWith('temp_')) {
+        console.log('📡 Deleting from database...')
+        await this.forceDeleteSession(sessionId)
+        console.log('✅ Database deletion complete')
+      } else {
+        console.log('⚠️ Temp session ID detected, skipping database deletion')
+      }
+      
+      // Clear local storage
+      console.log('🧹 Clearing local storage...')
+      await OfflineService.clearActiveSessionLocally()
+      console.log('✅ Local storage cleared')
+      
+      // Clear pending actions related to this session
+      console.log('🧹 Clearing pending actions...')
+      const pending = await OfflineService.getPendingActions()
+      let clearedCount = 0
+      for (const action of pending) {
+        if (action.id === sessionId || action.data?.session_id === sessionId) {
+          await OfflineService.removePendingAction(action.id)
+          clearedCount++
+        }
+      }
+      console.log(`✅ Cleared ${clearedCount} pending action(s)`)
+      
+      console.log('✅ Session force reset complete')
+    } catch (error: any) {
+      console.error('❌ Error force resetting session:', error)
+      console.error('Error stack:', error.stack)
+      throw error
+    }
+  }
+
+  // ===================================
   // VALIDATION METHODS
   // ===================================
 
@@ -620,8 +840,15 @@ export class SessionService {
     const now = new Date()
     const today = now.toISOString().split('T')[0]
     
-    // Check if session is from today
-    if (session.date !== today) {
+    console.log('🔍 Validating Time Out...')
+    console.log('Session date:', session.date)
+    console.log('Today:', today)
+    console.log('Breaks:', breaks.length, 'breaks with total duration:', breaks.reduce((sum, b) => sum + b.duration, 0), 'seconds')
+    
+    // Check if session is from today (or allow sessions from today's date in any timezone)
+    const sessionDate = session.date.split('T')[0] // Handle both date strings
+    if (sessionDate !== today) {
+      console.log('❌ Session is not from today')
       return {
         valid: false,
         error: 'Cannot time out a session from a different day. Please start a new session for today.',
@@ -631,6 +858,7 @@ export class SessionService {
     // Check for active break
     const activeBreak = breaks.find(b => b.end_time === null)
     if (activeBreak) {
+      console.log('❌ Active break found')
       return {
         valid: false,
         error: 'Please end your current break before timing out.',
@@ -638,15 +866,23 @@ export class SessionService {
     }
 
     // Calculate session duration (excluding breaks)
-    const startTime = new Date(`${session.date}T${session.start_time}`)
+    const startTime = new Date(`${sessionDate}T${session.start_time}`)
     const totalBreakSeconds = breaks.reduce((sum, b) => sum + b.duration, 0)
     const sessionDurationMs = now.getTime() - startTime.getTime()
     const workDurationSeconds = Math.floor(sessionDurationMs / 1000) - totalBreakSeconds
 
+    console.log('⏱️ Session started:', startTime.toISOString())
+    console.log('⏱️ Current time:', now.toISOString())
+    console.log('⏱️ Total session duration:', Math.floor(sessionDurationMs / 1000), 'seconds')
+    console.log('☕ Total break duration:', totalBreakSeconds, 'seconds')
+    console.log('💼 Work duration (excluding breaks):', workDurationSeconds, 'seconds', `(${(workDurationSeconds / 60).toFixed(1)} minutes)`)
+
     // Minimum session duration: 15 minutes (900 seconds)
     const MINIMUM_DURATION_SECONDS = 900
     if (workDurationSeconds < MINIMUM_DURATION_SECONDS) {
-      const remainingMinutes = Math.ceil((MINIMUM_DURATION_SECONDS - workDurationSeconds) / 60)
+      const remainingSeconds = MINIMUM_DURATION_SECONDS - workDurationSeconds
+      const remainingMinutes = Math.ceil(remainingSeconds / 60)
+      console.log(`❌ Session too short: ${workDurationSeconds}s < ${MINIMUM_DURATION_SECONDS}s (need ${remainingSeconds}s more)`)
       return {
         valid: false,
         error: `Session too short. Please work for at least ${remainingMinutes} more minute(s) before timing out.`,
@@ -655,12 +891,14 @@ export class SessionService {
 
     // Check if time out is after time in
     if (now <= startTime) {
+      console.log('❌ Time Out is before or equal to Time In')
       return {
         valid: false,
         error: 'Time Out must be after Time In.',
       }
     }
 
+    console.log('✅ Validation passed!')
     return { valid: true }
   }
 

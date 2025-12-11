@@ -6,16 +6,11 @@ import { ThemedView } from '../../../components/themed/ThemedView'
 import { ThemedText } from '../../../components/themed/ThemedText'
 import { ThemedCard } from '../../../components/themed/ThemedCard'
 import { useAuthStore } from '../../../stores/auth.store'
+import { SessionService } from '../../../services/session.service'
 import { useTheme } from '../../../hooks/useTheme'
+import type { Database } from '../../../types/supabase'
 
-interface Session {
-  id: string
-  date: string
-  start_time: string
-  end_time: string | null
-  total_hours: number
-  description: string | null
-}
+type Session = Database['public']['Tables']['sessions']['Row']
 
 export default function LogsScreen() {
   const { colors } = useTheme()
@@ -40,28 +35,17 @@ export default function LogsScreen() {
 
     try {
       setLoading(true)
-      // TODO: Load from Supabase
-      // Mock data for now
-      setSessions([
-        {
-          id: '1',
-          date: '2024-12-05',
-          start_time: '08:00',
-          end_time: '17:00',
-          total_hours: 8,
-          description: 'Worked on project documentation',
-        },
-        {
-          id: '2',
-          date: '2024-12-04',
-          start_time: '09:00',
-          end_time: '16:30',
-          total_hours: 7.5,
-          description: 'Team meeting and code review',
-        },
-      ])
+      console.log('📋 Loading sessions from database...')
       
-      console.log('✅ Sessions loaded')
+      // Load all completed sessions (sessions with end_time)
+      const allSessions = await SessionService.getSessions(user.id, 100, 0)
+      
+      // Filter to only show completed sessions
+      const completedSessions = allSessions.filter(s => s.end_time !== null)
+      
+      console.log(`✅ Loaded ${completedSessions.length} completed sessions`)
+      setSessions(completedSessions)
+      
     } catch (error) {
       console.error('❌ Error loading sessions:', error)
     } finally {

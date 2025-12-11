@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { View, TouchableOpacity, Modal, ScrollView } from 'react-native'
+import { View, TouchableOpacity, Modal } from 'react-native'
 import { ThemedText } from '../themed/ThemedText'
 import { ThemedCard } from '../themed/ThemedCard'
 import { Button } from './Button'
@@ -34,10 +34,18 @@ export function DateTimePicker({
     value ? new Date(value) : new Date()
   )
 
-  const formatDate = (dateString: string | null) => {
+  const formatDisplay = (dateString: string | null) => {
     if (!dateString) return placeholder
 
     const date = new Date(dateString)
+    
+    if (mode === 'time') {
+      return date.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      })
+    }
     
     return date.toLocaleDateString('en-US', {
       year: 'numeric',
@@ -47,7 +55,7 @@ export function DateTimePicker({
   }
 
   const handleConfirm = () => {
-    console.log('✅ Date confirmed:', tempDate.toISOString())
+    console.log(`✅ ${mode} confirmed:`, tempDate.toISOString())
     setIsVisible(false)
     onChange(tempDate.toISOString())
   }
@@ -57,7 +65,7 @@ export function DateTimePicker({
     setTempDate(value ? new Date(value) : new Date())
   }
 
-  const adjustDate = (field: 'year' | 'month' | 'day', increment: number) => {
+  const adjustDate = (field: 'year' | 'month' | 'day' | 'hour' | 'minute', increment: number) => {
     const newDate = new Date(tempDate)
     
     if (field === 'year') {
@@ -66,6 +74,10 @@ export function DateTimePicker({
       newDate.setMonth(newDate.getMonth() + increment)
     } else if (field === 'day') {
       newDate.setDate(newDate.getDate() + increment)
+    } else if (field === 'hour') {
+      newDate.setHours(newDate.getHours() + increment)
+    } else if (field === 'minute') {
+      newDate.setMinutes(newDate.getMinutes() + increment)
     }
 
     if (minimumDate && newDate < new Date(minimumDate)) return
@@ -111,7 +123,7 @@ export function DateTimePicker({
             color: value ? colors.text : colors.textSecondary,
           }}
         >
-          {formatDate(value)}
+          {formatDisplay(value)}
         </ThemedText>
       </TouchableOpacity>
 
@@ -144,10 +156,87 @@ export function DateTimePicker({
         >
           <ThemedCard style={{ width: '100%', maxWidth: 400, padding: 24 }}>
             <ThemedText weight="bold" style={{ fontSize: 20, marginBottom: 24, textAlign: 'center' }}>
-              📅 Select Date
+              {mode === 'time' ? '⏰ Select Time' : '📅 Select Date'}
             </ThemedText>
 
             <View style={{ marginBottom: 24 }}>
+              {mode === 'time' ? (
+                <>
+                  {/* Hour */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16, justifyContent: 'space-between' }}>
+                    <ThemedText style={{ width: 80 }}>Hour:</ThemedText>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                      <TouchableOpacity
+                        onPress={() => adjustDate('hour', -1)}
+                        style={{
+                          width: 44,
+                          height: 44,
+                          backgroundColor: '#36393f',
+                          borderRadius: 8,
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <ThemedText weight="bold" style={{ fontSize: 20 }}>−</ThemedText>
+                      </TouchableOpacity>
+                      <ThemedText weight="bold" style={{ width: 80, textAlign: 'center', fontSize: 18 }}>
+                        {tempDate.toLocaleString('en-US', { hour: 'numeric', hour12: true }).split(' ')[0]}
+                      </ThemedText>
+                      <TouchableOpacity
+                        onPress={() => adjustDate('hour', 1)}
+                        style={{
+                          width: 44,
+                          height: 44,
+                          backgroundColor: '#36393f',
+                          borderRadius: 8,
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <ThemedText weight="bold" style={{ fontSize: 20 }}>+</ThemedText>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  {/* Minute */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <ThemedText style={{ width: 80 }}>Minute:</ThemedText>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                      <TouchableOpacity
+                        onPress={() => adjustDate('minute', -5)}
+                        style={{
+                          width: 44,
+                          height: 44,
+                          backgroundColor: '#36393f',
+                          borderRadius: 8,
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <ThemedText weight="bold" style={{ fontSize: 20 }}>−</ThemedText>
+                      </TouchableOpacity>
+                      <ThemedText weight="bold" style={{ width: 80, textAlign: 'center', fontSize: 18 }}>
+                        {String(tempDate.getMinutes()).padStart(2, '0')}
+                      </ThemedText>
+                      <TouchableOpacity
+                        onPress={() => adjustDate('minute', 5)}
+                        style={{
+                          width: 44,
+                          height: 44,
+                          backgroundColor: '#36393f',
+                          borderRadius: 8,
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <ThemedText weight="bold" style={{ fontSize: 20 }}>+</ThemedText>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </>
+              ) : (
+                <>
+                  {/* Year */}
               {/* Year */}
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16, justifyContent: 'space-between' }}>
                 <ThemedText style={{ width: 80 }}>Year:</ThemedText>
@@ -255,6 +344,8 @@ export function DateTimePicker({
                   </TouchableOpacity>
                 </View>
               </View>
+                </>
+              )}
             </View>
 
             {/* Preview */}
@@ -263,17 +354,25 @@ export function DateTimePicker({
                 Selected:
               </ThemedText>
               <ThemedText weight="bold" style={{ textAlign: 'center', fontSize: 16 }}>
-                {tempDate.toLocaleDateString('en-US', {
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                })}
+                {mode === 'time'
+                  ? tempDate.toLocaleTimeString('en-US', {
+                      hour: 'numeric',
+                      minute: '2-digit',
+                      hour12: true,
+                    })
+                  : tempDate.toLocaleDateString('en-US', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                    })}
               </ThemedText>
             </View>
 
             <View style={{ gap: 12 }}>
-              <Button onPress={handleConfirm}>Confirm Date</Button>
+              <Button onPress={handleConfirm}>
+                {mode === 'time' ? 'Confirm Time' : 'Confirm Date'}
+              </Button>
               <Button variant="outline" onPress={handleCancel}>Cancel</Button>
             </View>
           </ThemedCard>
