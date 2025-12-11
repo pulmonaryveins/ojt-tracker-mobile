@@ -7,6 +7,7 @@ import { ThemedText } from '../../components/themed/ThemedText'
 import { ThemedCard } from '../../components/themed/ThemedCard'
 import { Button } from '../../components/ui/Button'
 import { DateTimePicker } from '../../components/ui/DateTimePicker'
+import { Modal } from '../../components/ui/Modal'
 import { useAuthStore } from '../../stores/auth.store'
 import { SessionService } from '../../services/session.service'
 import { useTheme } from '../../hooks/useTheme'
@@ -30,6 +31,7 @@ export default function ManualEntryModal() {
   const [breaks, setBreaks] = useState<ManualBreak[]>([])
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<{ [key: string]: string }>({})
+  const [showConfirmModal, setShowConfirmModal] = useState(false)
 
   const format12Hour = (date: Date): string => {
     return date.toLocaleTimeString('en-US', {
@@ -181,7 +183,7 @@ export default function ManualEntryModal() {
     return Object.keys(newErrors).length === 0
   }
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!validateManualEntry()) {
       Alert.alert('Validation Error', 'Please fix the errors before saving')
       return
@@ -192,100 +194,98 @@ export default function ManualEntryModal() {
       return
     }
 
-    Alert.alert(
-      'Confirm Manual Entry',
-      'Are you sure you want to create this manual time entry? This will be recorded as a completed session.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Save',
-          onPress: async () => {
-            try {
-              setLoading(true)
+    setShowConfirmModal(true)
+  }
 
-              const sessionDate = new Date(date).toISOString().split('T')[0]
-              const timeInFormatted = formatTime24(timeIn)
-              const timeOutFormatted = formatTime24(timeOut)
+  const confirmSave = async () => {
+    setShowConfirmModal(false)
+    
+    if (!user?.id) {
+      Alert.alert('Error', 'User not found. Please log in again.')
+      return
+    }
 
-              const startTime = new Date(`${sessionDate}T${timeInFormatted}`)
-              const endTime = new Date(`${sessionDate}T${timeOutFormatted}`)
+    try {
+      setLoading(true)
 
-              // Calculate total duration in seconds
-              const totalDurationSeconds = Math.floor(
-                (endTime.getTime() - startTime.getTime()) / 1000
-              )
+      const sessionDate = new Date(date).toISOString().split('T')[0]
+      const timeInFormatted = formatTime24(timeIn)
+      const timeOutFormatted = formatTime24(timeOut)
 
-              // Calculate total break time
-              let totalBreakSeconds = 0
-              const breakRecords: Array<{ start_time: string; duration: number }> = []
+      const startTime = new Date(`${sessionDate}T${timeInFormatted}`)
+      const endTime = new Date(`${sessionDate}T${timeOutFormatted}`)
 
-              breaks.forEach(breakItem => {
-                if (breakItem.startTime && breakItem.endTime) {
-                  const breakStart = new Date(`${sessionDate}T${formatTime24(breakItem.startTime)}`)
-                  const breakEnd = new Date(`${sessionDate}T${formatTime24(breakItem.endTime)}`)
-                  const breakDurationSeconds = Math.floor(
-                    (breakEnd.getTime() - breakStart.getTime()) / 1000
-                  )
-                  totalBreakSeconds += breakDurationSeconds
-                  breakRecords.push({
-                    start_time: formatTime24(breakItem.startTime),
-                    duration: breakDurationSeconds,
-                  })
-                }
+      // Calculate total duration in seconds
+      const totalDurationSeconds = Math.floor(
+        (endTime.getTime() - startTime.getTime()) / 1000
+      )
+
+      // Calculate total break time
+      let totalBreakSeconds = 0
+      const breakRecords: Array<{ start_time: string; duration: number }> = []
+
+      breaks.forEach(breakItem => {
+        if (breakItem.startTime && breakItem.endTime) {
+          const breakStart = new Date(`${sessionDate}T${formatTime24(breakItem.startTime)}`)
+          const breakEnd = new Date(`${sessionDate}T${formatTime24(breakItem.endTime)}`)
+          const breakDurationSeconds = Math.floor(
+            (breakEnd.getTime() - breakStart.getTime()) / 1000
+          )
+          totalBreakSeconds += breakDurationSeconds
+          breakRecords.push({
+            start_time: formatTime24(breakItem.startTime),
+            duration: breakDurationSeconds,
+          })
+        }
+      })
+
+      // Calculate work duration
+      const workDurationSeconds = totalDurationSeconds - totalBreakSeconds
+      const totalHours = parseFloat((workDurationSeconds / 3600).toFixed(2))
+
+      console.log('📝 Creating manual session entry...')
+      console.log('Date:', sessionDate)
+      console.log('Time In:', timeInFormatted)
+      console.log('Time Out:', timeOutFormatted)
+      console.log('Work Duration:', workDurationSeconds, 'seconds')
+      console.log('Total Hours:', totalHours)
+      console.log('Breaks:', breakRecords.length)
+
+      // Create the session with manual entry
+      const sessionId = await SessionService.createManualSession(
+        user.id,
+        sessionDate,
+        timeInFormatted,
+        timeOutFormatted,
+        totalHours,
+        description.trim() || null,
+        breakRecords
+      )
+
+      console.log('✅ Manual session created:', sessionId)
+
+      Alert.alert(
+        'Success',
+        `Manual time entry saved successfully.\n\n${totalHours.toFixed(2)} hours worked`,
+        [
+          {
+            text: 'Continue to Daily Log',
+            onPress: () => {
+              // Navigate to daily log modal with the session ID
+              router.push({
+                pathname: '/modals/daily-log',
+                params: { sessionId, isManualEntry: 'true' },
               })
-
-              // Calculate work duration
-              const workDurationSeconds = totalDurationSeconds - totalBreakSeconds
-              const totalHours = parseFloat((workDurationSeconds / 3600).toFixed(2))
-
-              console.log('📝 Creating manual session entry...')
-              console.log('Date:', sessionDate)
-              console.log('Time In:', timeInFormatted)
-              console.log('Time Out:', timeOutFormatted)
-              console.log('Work Duration:', workDurationSeconds, 'seconds')
-              console.log('Total Hours:', totalHours)
-              console.log('Breaks:', breakRecords.length)
-
-              // Create the session with manual entry
-              const sessionId = await SessionService.createManualSession(
-                user.id,
-                sessionDate,
-                timeInFormatted,
-                timeOutFormatted,
-                workDurationSeconds,
-                totalHours,
-                description.trim() || null,
-                breakRecords
-              )
-
-              console.log('✅ Manual session created:', sessionId)
-
-              Alert.alert(
-                'Success! 🎉',
-                `Manual time entry saved:\n${totalHours.toFixed(2)} hours worked`,
-                [
-                  {
-                    text: 'OK',
-                    onPress: () => {
-                      // Navigate to daily log modal with the session ID
-                      router.push({
-                        pathname: '/modals/daily-log',
-                        params: { sessionId, isManualEntry: 'true' },
-                      })
-                    },
-                  },
-                ]
-              )
-            } catch (error: any) {
-              console.error('❌ Error creating manual entry:', error)
-              Alert.alert('Error', error.message || 'Failed to save manual entry')
-            } finally {
-              setLoading(false)
-            }
+            },
           },
-        },
-      ]
-    )
+        ]
+      )
+    } catch (error: any) {
+      console.error('❌ Error creating manual entry:', error)
+      Alert.alert('Error', error.message || 'Failed to save manual entry')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const calculateTotalHours = (): string => {
@@ -331,7 +331,13 @@ export default function ManualEntryModal() {
         {/* Header */}
         <View style={{ marginBottom: 24, flexDirection: 'row', alignItems: 'center' }}>
           <TouchableOpacity
-            onPress={() => router.back()}
+            onPress={() => {
+              if (router.canGoBack()) {
+                router.back()
+              } else {
+                router.replace('/(app)/(logs)')
+              }
+            }}
             style={{ marginRight: 16 }}
           >
             <Ionicons name="arrow-back" size={24} color={colors.text} />
@@ -521,7 +527,13 @@ export default function ManualEntryModal() {
 
           <Button
             variant="outline"
-            onPress={() => router.back()}
+            onPress={() => {
+              if (router.canGoBack()) {
+                router.back()
+              } else {
+                router.replace('/(app)/(logs)')
+              }
+            }}
             disabled={loading}
           >
             <ThemedText weight="bold" style={{ fontSize: 16 }}>
@@ -557,6 +569,27 @@ export default function ManualEntryModal() {
           </View>
         </ThemedCard>
       </ScrollView>
+
+      {/* Confirmation Modal */}
+      <Modal
+        visible={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        title="Confirm Manual Entry"
+        type="info"
+        message={`Are you sure you want to save this manual time entry?\n\nDate: ${new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}\nTime In: ${timeIn ? new Date(timeIn).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '-'}\nTime Out: ${timeOut ? new Date(timeOut).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '-'}\nBreaks: ${breaks.filter(b => b.startTime && b.endTime).length}\nTotal Hours: ${calculateTotalHours()}h\n\nThis will be recorded as a completed session.`}
+        actions={[
+          {
+            text: 'Cancel',
+            onPress: () => setShowConfirmModal(false),
+            variant: 'outline',
+          },
+          {
+            text: 'Save Entry',
+            onPress: confirmSave,
+            variant: 'primary',
+          },
+        ]}
+      />
     </ThemedView>
   )
 }

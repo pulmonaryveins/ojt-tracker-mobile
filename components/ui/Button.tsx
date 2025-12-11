@@ -89,15 +89,19 @@ export function Button({
       {loading ? (
         <ActivityIndicator color={getTextColor()} />
       ) : (
-        <ThemedText
-          weight="semibold"
-          style={{
-            color: getTextColor(),
-            fontSize: getFontSize(),
-          }}
-        >
-          {children}
-        </ThemedText>
+        typeof children === 'string' ? (
+          <ThemedText
+            weight="semibold"
+            style={{
+              color: getTextColor(),
+              fontSize: getFontSize(),
+            }}
+          >
+            {children}
+          </ThemedText>
+        ) : (
+          children
+        )
       )}
     </TouchableOpacity>
   )

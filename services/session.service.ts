@@ -527,27 +527,26 @@ export class SessionService {
   static async createManualSession(
     userId: string,
     date: string,
-    startTime: string,
-    endTime: string,
-    duration: number,
+    timeIn: string,
+    timeOut: string,
     totalHours: number,
-    description: string | null,
+    notes: string | null,
     breaks: Array<{ start_time: string; duration: number }>
   ): Promise<string> {
     try {
       console.log('📝 Creating manual session entry...')
 
-      // Create the session
+      // Create the session with status completed
       const { data: session, error: sessionError } = await supabase
         .from('sessions')
         .insert({
           user_id: userId,
           date,
-          start_time: startTime,
-          end_time: endTime,
-          duration,
+          start_time: timeIn,
+          end_time: timeOut,
+          duration: Math.floor((new Date(`${date}T${timeOut}`).getTime() - new Date(`${date}T${timeIn}`).getTime()) / 1000),
           total_hours: totalHours,
-          description,
+          description: notes,
         })
         .select()
         .single()
@@ -558,39 +557,7 @@ export class SessionService {
       }
 
       console.log('✅ Manual session created:', session.id)
-
-      // Create breaks if any
-      if (breaks.length > 0) {
-        console.log('📝 Creating breaks for manual session...')
-        
-        const breaksToInsert = breaks.map(breakItem => ({
-          session_id: session.id,
-          start_time: breakItem.start_time,
-          end_time: breakItem.start_time, // Will be updated with calculated end time
-          duration: breakItem.duration,
-        }))
-
-        // Calculate end times for breaks
-        const breaksWithEndTimes = breaksToInsert.map(b => {
-          const breakStart = new Date(`${date}T${b.start_time}`)
-          const breakEnd = new Date(breakStart.getTime() + b.duration * 1000)
-          return {
-            ...b,
-            end_time: breakEnd.toTimeString().split(' ')[0],
-          }
-        })
-
-        const { error: breaksError } = await supabase
-          .from('breaks')
-          .insert(breaksWithEndTimes)
-
-        if (breaksError) {
-          console.error('Error creating breaks:', breaksError)
-          // Don't throw, session is already created
-        } else {
-          console.log(`✅ Created ${breaks.length} break(s) for manual session`)
-        }
-      }
+      console.log('Session data:', session)
 
       return session.id
     } catch (error) {
