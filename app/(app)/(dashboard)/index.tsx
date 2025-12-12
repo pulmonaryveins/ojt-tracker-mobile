@@ -8,6 +8,7 @@ import { ThemedCard } from '../../../components/themed/ThemedCard'
 import { useAuthStore } from '../../../stores/auth.store'
 import { ProfileService } from '../../../services/profile.service'
 import { OJTSetupService } from '../../../services/ojt-setup.service'
+import { SessionService } from '../../../services/session.service'
 import { useTheme } from '../../../hooks/useTheme'
 import type { Database } from '../../../types/supabase'
 
@@ -44,7 +45,7 @@ export default function DashboardScreen() {
       const [profileData, setupData, hours] = await Promise.all([
         ProfileService.getProfile(user.id),
         OJTSetupService.getSetup(user.id),
-        ProfileService.getTotalHours(user.id),
+        SessionService.getTotalHours(user.id), // Use SessionService for consistency with Activity Logs
       ])
       
       setProfile(profileData)
@@ -52,6 +53,7 @@ export default function DashboardScreen() {
       setTotalHours(hours)
       
       console.log('✅ Dashboard data loaded')
+      console.log('📊 Total hours from sessions:', hours)
     } catch (error) {
       console.error('❌ Error loading dashboard:', error)
     } finally {
@@ -76,6 +78,26 @@ export default function DashboardScreen() {
   const daysRemaining = ojtSetup?.end_date
     ? Math.max(0, Math.ceil((new Date(ojtSetup.end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))
     : null
+
+  // Calculate estimated ending date based on actual progress
+  const calculateEstimatedEndDate = () => {
+    if (!ojtSetup || totalHours === 0) return null
+    
+    const startDate = new Date(ojtSetup.start_date)
+    const today = new Date()
+    const daysElapsed = Math.max(1, Math.ceil((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)))
+    const averageHoursPerDay = totalHours / daysElapsed
+    
+    if (averageHoursPerDay === 0) return null
+    
+    const daysNeededTotal = Math.ceil(ojtSetup.required_hours / averageHoursPerDay)
+    const estimatedEnd = new Date(startDate)
+    estimatedEnd.setDate(estimatedEnd.getDate() + daysNeededTotal)
+    
+    return estimatedEnd
+  }
+
+  const estimatedEndDate = calculateEstimatedEndDate()
 
   if (loading) {
     return (
@@ -342,6 +364,39 @@ export default function DashboardScreen() {
                         day: 'numeric',
                         year: 'numeric',
                       })}
+                    </ThemedText>
+                  </View>
+                </View>
+              )}
+
+              {estimatedEndDate && totalHours > 0 && (
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <View
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 16,
+                      backgroundColor: colors.card,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      marginRight: 12,
+                    }}
+                  >
+                    <Ionicons name="analytics" size={18} color="#3ba55d" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <ThemedText variant="secondary" style={{ fontSize: 11, marginBottom: 2 }}>
+                      Estimated Completion
+                    </ThemedText>
+                    <ThemedText weight="semibold" style={{ fontSize: 14, color: '#3ba55d' }}>
+                      {estimatedEndDate.toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
+                    </ThemedText>
+                    <ThemedText variant="secondary" style={{ fontSize: 10, marginTop: 2 }}>
+                      Based on your current pace
                     </ThemedText>
                   </View>
                 </View>

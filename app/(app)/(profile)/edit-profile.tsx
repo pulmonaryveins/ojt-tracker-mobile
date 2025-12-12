@@ -1,20 +1,24 @@
 import { useState, useEffect } from 'react'
 import { View, KeyboardAvoidingView, Platform, ScrollView } from 'react-native'
 import { useRouter } from 'expo-router'
+import { Ionicons } from '@expo/vector-icons'
 import { ThemedView } from '../../../components/themed/ThemedView'
 import { ThemedText } from '../../../components/themed/ThemedText'
+import { ThemedCard } from '../../../components/themed/ThemedCard'
 import { Input } from '../../../components/ui/Input'
 import { Button } from '../../../components/ui/Button'
 import { Select } from '../../../components/ui/Select'
 import { Modal } from '../../../components/ui/Modal'
 import { useAuthStore } from '../../../stores/auth.store'
 import { ProfileService } from '../../../services/profile.service'
+import { useTheme } from '../../../hooks/useTheme'
 import type { Database } from '../../../types/supabase'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
 
 export default function EditProfileScreen() {
   const router = useRouter()
+  const { colors } = useTheme()
   const user = useAuthStore((state) => state.user)
   
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -132,7 +136,7 @@ export default function EditProfileScreen() {
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors)
       const firstError = Object.values(newErrors)[0]
-      showModal('Validation Error ⚠️', firstError, 'error')
+      showModal('Validation Error', firstError, 'error')
       return
     }
 
@@ -160,7 +164,7 @@ export default function EditProfileScreen() {
       console.log('✅ Profile updated successfully:', updatedProfile)
       
       showModal(
-        'Success! 🎉',
+        'Profile Updated',
         'Your profile has been updated successfully.',
         'success'
       )
@@ -215,60 +219,139 @@ export default function EditProfileScreen() {
           }}
           showsVerticalScrollIndicator={false}
         >
-          <ThemedText weight="bold" style={{ fontSize: 30, marginBottom: 8 }}>
-            Edit Profile ✏️
-          </ThemedText>
-          <ThemedText variant="secondary" style={{ fontSize: 16, marginBottom: 32 }}>
-            Update your personal information
-          </ThemedText>
-
-          <View style={{ marginBottom: 24 }}>
-            <Input
-              label="Full Name *"
-              placeholder="Juan Dela Cruz"
-              value={formData.fullName}
-              onChangeText={(text) => updateField('fullName', text)}
-              error={errors.fullName}
-              autoCapitalize="words"
-              editable={!saving}
-            />
-
-            <Input
-              label="School *"
-              placeholder="University of Cebu"
-              value={formData.school}
-              onChangeText={(text) => updateField('school', text)}
-              error={errors.school}
-              autoCapitalize="words"
-              editable={!saving}
-            />
-
-            <Select
-              label="Year Level *"
-              placeholder="Select your year level"
-              value={formData.yearLevel}
-              options={yearLevels}
-              onValueChange={(value) => updateField('yearLevel', value)}
-              error={errors.yearLevel}
-            />
-
-            <Input
-              label="OJT Workplace *"
-              placeholder="Company Name"
-              value={formData.workplace}
-              onChangeText={(text) => updateField('workplace', text)}
-              error={errors.workplace}
-              autoCapitalize="words"
-              editable={!saving}
-            />
+          {/* Header Section */}
+          <View style={{ marginBottom: 32 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+              <View
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 24,
+                  backgroundColor: colors.accent + '20',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  marginRight: 16,
+                }}
+              >
+                <Ionicons name="person-outline" size={24} color={colors.accent} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <ThemedText weight="bold" style={{ fontSize: 28, marginBottom: 4 }}>
+                  Edit Profile
+                </ThemedText>
+                <ThemedText variant="secondary" style={{ fontSize: 14 }}>
+                  Update your personal information
+                </ThemedText>
+              </View>
+            </View>
           </View>
 
+          {/* Info Card */}
+          <ThemedCard 
+            style={{ 
+              marginBottom: 24, 
+              padding: 16,
+              backgroundColor: colors.accent + '10',
+              borderWidth: 1,
+              borderColor: colors.accent + '30',
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="information-circle" size={20} color={colors.accent} style={{ marginRight: 12 }} />
+              <ThemedText variant="secondary" style={{ fontSize: 13, flex: 1 }}>
+                All fields marked with * are required
+              </ThemedText>
+            </View>
+          </ThemedCard>
+
+          {/* Form Section */}
+          <ThemedCard style={{ marginBottom: 24, padding: 20 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
+              <Ionicons name="clipboard-outline" size={22} color={colors.accent} style={{ marginRight: 12 }} />
+              <ThemedText weight="bold" style={{ fontSize: 18 }}>
+                Personal Details
+              </ThemedText>
+            </View>
+
+            <View style={{ gap: 16 }}>
+              <View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                  <Ionicons name="person" size={16} color={colors.textSecondary} style={{ marginRight: 8 }} />
+                  <ThemedText variant="secondary" style={{ fontSize: 12 }}>
+                    FULL NAME *
+                  </ThemedText>
+                </View>
+                <Input
+                  placeholder="Juan Dela Cruz"
+                  value={formData.fullName}
+                  onChangeText={(text) => updateField('fullName', text)}
+                  error={errors.fullName}
+                  autoCapitalize="words"
+                  editable={!saving}
+                />
+              </View>
+
+              <View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                  <Ionicons name="school" size={16} color={colors.textSecondary} style={{ marginRight: 8 }} />
+                  <ThemedText variant="secondary" style={{ fontSize: 12 }}>
+                    SCHOOL *
+                  </ThemedText>
+                </View>
+                <Input
+                  placeholder="University of Cebu"
+                  value={formData.school}
+                  onChangeText={(text) => updateField('school', text)}
+                  error={errors.school}
+                  autoCapitalize="words"
+                  editable={!saving}
+                />
+              </View>
+
+              <View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                  <Ionicons name="ribbon" size={16} color={colors.textSecondary} style={{ marginRight: 8 }} />
+                  <ThemedText variant="secondary" style={{ fontSize: 12 }}>
+                    YEAR LEVEL *
+                  </ThemedText>
+                </View>
+                <Select
+                  placeholder="Select your year level"
+                  value={formData.yearLevel}
+                  options={yearLevels}
+                  onValueChange={(value) => updateField('yearLevel', value)}
+                  error={errors.yearLevel}
+                />
+              </View>
+
+              <View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                  <Ionicons name="business" size={16} color={colors.textSecondary} style={{ marginRight: 8 }} />
+                  <ThemedText variant="secondary" style={{ fontSize: 12 }}>
+                    OJT WORKPLACE *
+                  </ThemedText>
+                </View>
+                <Input
+                  placeholder="Company Name"
+                  value={formData.workplace}
+                  onChangeText={(text) => updateField('workplace', text)}
+                  error={errors.workplace}
+                  autoCapitalize="words"
+                  editable={!saving}
+                />
+              </View>
+            </View>
+          </ThemedCard>
+
+          {/* Action Buttons */}
           <View style={{ gap: 12 }}>
             <Button 
               onPress={handleSave} 
               loading={saving} 
               disabled={saving}
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}
             >
+              {!saving && <Ionicons name="checkmark-circle" size={20} color="#fff" style={{ marginRight: 8 }} />}
               {saving ? 'Saving...' : 'Save Changes'}
             </Button>
 
@@ -277,7 +360,10 @@ export default function EditProfileScreen() {
               onPress={() => router.back()}
               disabled={saving}
             >
-              Cancel
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="close-circle-outline" size={20} color={colors.text} style={{ marginRight: 8 }} />
+                <ThemedText style={{ color: colors.text }}>Cancel</ThemedText>
+              </View>
             </Button>
           </View>
         </ScrollView>
