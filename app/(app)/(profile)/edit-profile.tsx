@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { View, KeyboardAvoidingView, Platform, ScrollView } from 'react-native'
+import { View, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity, Image, Alert } from 'react-native'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
+import * as ImagePicker from 'expo-image-picker'
 import { ThemedView } from '../../../components/themed/ThemedView'
 import { ThemedText } from '../../../components/themed/ThemedText'
 import { ThemedCard } from '../../../components/themed/ThemedCard'
@@ -31,6 +32,9 @@ export default function EditProfileScreen() {
     yearLevel: '',
     workplace: '',
   })
+  
+  const [profilePicture, setProfilePicture] = useState<string | null>(null)
+  const [uploadingImage, setUploadingImage] = useState(false)
   
   const [errors, setErrors] = useState<Record<string, string>>({})
   
@@ -70,6 +74,7 @@ export default function EditProfileScreen() {
           yearLevel: data.year_level || '',
           workplace: data.workplace || '',
         })
+        setProfilePicture(data.profile_picture_url)
       }
     } catch (error) {
       console.error('❌ Error loading profile:', error)
@@ -100,6 +105,137 @@ export default function EditProfileScreen() {
       delete newErrors[field]
       setErrors(newErrors)
     }
+  }
+
+  const pickImage = async () => {
+    try {
+      // Request media library permissions
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync()
+      
+      if (!permissionResult.granted) {
+        Alert.alert(
+          'Permission Required',
+          'Please allow access to your photo library to upload a profile picture.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Open Settings', onPress: () => ImagePicker.requestMediaLibraryPermissionsAsync() },
+          ]
+        )
+        return
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      })
+
+      if (!result.canceled && result.assets[0]) {
+        const imageUri = result.assets[0].uri
+        await uploadProfilePicture(imageUri)
+      }
+    } catch (error: any) {
+      console.error('Error picking image:', error)
+      showModal('Error', error.message || 'Failed to select image. Please try again.', 'error')
+    }
+  }
+
+  const takePhoto = async () => {
+    try {
+      const permissionResult = await ImagePicker.requestCameraPermissionsAsync()
+      
+      if (!permissionResult.granted) {
+        Alert.alert('Permission Required', 'Camera permission is required to take photos')
+        return
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      })
+
+      if (!result.canceled && result.assets[0]) {
+        const imageUri = result.assets[0].uri
+        await uploadProfilePicture(imageUri)
+      }
+    } catch (error) {
+      console.error('Error taking photo:', error)
+      showModal('Error', 'Failed to take photo', 'error')
+    }
+  }
+
+  const uploadProfilePicture = async (imageUri: string) => {
+    if (!user?.id) return
+
+    try {
+      setUploadingImage(true)
+      console.log('📤 Starting upload for:', imageUri)
+      const publicUrl = await ProfileService.uploadProfilePicture(user.id, imageUri)
+      setProfilePicture(publicUrl)
+      
+      // Don't show modal, just update silently for better UX
+      console.log('✅ Upload complete:', publicUrl)
+    } catch (error: any) {
+      console.error('❌ Error uploading profile picture:', error)
+      
+      let errorMessage = 'Failed to upload profile picture. '
+      
+      if (error.message?.includes('storage')) {
+        errorMessage += 'Storage not configured. Please contact support.'
+      } else if (error.message?.includes('network')) {
+        errorMessage += 'Please check your internet connection.'
+      } else {
+        errorMessage += 'Please try again.'
+      }
+      
+      showModal('Upload Failed', errorMessage, 'error')
+    } finally {
+      setUploadingImage(false)
+    }
+  }
+
+  const removeProfilePicture = async () => {
+    if (!user?.id || !profilePicture) return
+
+    Alert.alert(
+      'Remove Picture',
+      'Are you sure you want to remove your profile picture?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setUploadingImage(true)
+              await ProfileService.deleteProfilePicture(user.id, profilePicture)
+              setProfilePicture(null)
+              showModal('Success', 'Profile picture removed', 'success')
+            } catch (error) {
+              console.error('Error removing profile picture:', error)
+              showModal('Error', 'Failed to remove profile picture', 'error')
+            } finally {
+              setUploadingImage(false)
+            }
+          },
+        },
+      ]
+    )
+  }
+
+  const showImageOptions = () => {
+    Alert.alert(
+      'Profile Picture',
+      'Choose an option',
+      [
+        { text: 'Take Photo', onPress: takePhoto },
+        { text: 'Choose from Library', onPress: pickImage },
+        profilePicture ? { text: 'Remove Picture', onPress: removeProfilePicture, style: 'destructive' } : null,
+        { text: 'Cancel', style: 'cancel' },
+      ].filter(Boolean) as any
+    )
   }
 
   const handleSave = async () => {
@@ -245,6 +381,164 @@ export default function EditProfileScreen() {
               </View>
             </View>
           </View>
+
+          {/* Profile Picture Section */}
+          <ThemedCard
+            style={{
+              marginBottom: 24,
+              padding: 24,
+              backgroundColor: colors.accent + '10',
+              borderWidth: 2,
+              borderColor: colors.accent + '30',
+            }}
+          >
+            <View style={{ alignItems: 'center' }}>
+              <ThemedText weight="semibold" style={{ fontSize: 16, marginBottom: 20, textAlign: 'center' }}>
+                Profile Picture
+              </ThemedText>
+              
+              <View style={{ position: 'relative', marginBottom: 16 }}>
+                <TouchableOpacity
+                  onPress={showImageOptions}
+                  disabled={uploadingImage}
+                  activeOpacity={0.7}
+                  style={{
+                    width: 140,
+                    height: 140,
+                    borderRadius: 70,
+                    backgroundColor: colors.card,
+                    borderWidth: 4,
+                    borderColor: colors.accent,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    overflow: 'hidden',
+                    shadowColor: colors.accent,
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 8,
+                    elevation: 8,
+                  }}
+                >
+                  {profilePicture ? (
+                    <Image
+                      source={{ uri: profilePicture }}
+                      style={{ width: '100%', height: '100%' }}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+                      <Ionicons name="person" size={70} color={colors.textSecondary} />
+                    </View>
+                  )}
+                  {uploadingImage && (
+                    <View
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Ionicons name="cloud-upload" size={32} color="#fff" style={{ marginBottom: 8 }} />
+                      <ThemedText style={{ color: '#fff', fontSize: 12 }}>Uploading...</ThemedText>
+                    </View>
+                  )}
+                </TouchableOpacity>
+                <View
+                  style={{
+                    position: 'absolute',
+                    bottom: 0,
+                    right: 0,
+                    width: 42,
+                    height: 42,
+                    borderRadius: 21,
+                    backgroundColor: colors.accent,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    borderWidth: 4,
+                    borderColor: colors.card,
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.25,
+                    shadowRadius: 4,
+                    elevation: 5,
+                  }}
+                >
+                  <Ionicons name="camera" size={22} color="#fff" />
+                </View>
+              </View>
+              
+              <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
+                <TouchableOpacity
+                  onPress={pickImage}
+                  disabled={uploadingImage}
+                  style={{
+                    flex: 1,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    paddingVertical: 12,
+                    paddingHorizontal: 16,
+                    backgroundColor: colors.accent,
+                    borderRadius: 12,
+                    opacity: uploadingImage ? 0.5 : 1,
+                  }}
+                >
+                  <Ionicons name="images" size={18} color="#fff" style={{ marginRight: 8 }} />
+                  <ThemedText style={{ color: '#fff', fontWeight: '600', fontSize: 13 }}>
+                    Gallery
+                  </ThemedText>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  onPress={takePhoto}
+                  disabled={uploadingImage}
+                  style={{
+                    flex: 1,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    paddingVertical: 12,
+                    paddingHorizontal: 16,
+                    backgroundColor: colors.card,
+                    borderRadius: 12,
+                    borderWidth: 2,
+                    borderColor: colors.accent,
+                    opacity: uploadingImage ? 0.5 : 1,
+                  }}
+                >
+                  <Ionicons name="camera" size={18} color={colors.accent} style={{ marginRight: 8 }} />
+                  <ThemedText style={{ color: colors.accent, fontWeight: '600', fontSize: 13 }}>
+                    Camera
+                  </ThemedText>
+                </TouchableOpacity>
+              </View>
+              
+              {profilePicture && (
+                <TouchableOpacity
+                  onPress={removeProfilePicture}
+                  disabled={uploadingImage}
+                  style={{
+                    paddingVertical: 8,
+                    paddingHorizontal: 16,
+                    opacity: uploadingImage ? 0.5 : 1,
+                  }}
+                >
+                  <ThemedText style={{ color: '#ed4245', fontSize: 13, fontWeight: '500' }}>
+                    Remove Picture
+                  </ThemedText>
+                </TouchableOpacity>
+              )}
+              
+              <ThemedText variant="secondary" style={{ fontSize: 12, textAlign: 'center', marginTop: 8 }}>
+                Upload a clear photo of yourself
+              </ThemedText>
+            </View>
+          </ThemedCard>
 
           {/* Info Card */}
           <ThemedCard 

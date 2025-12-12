@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { View, ScrollView, RefreshControl, Dimensions } from 'react-native'
+import { View, ScrollView, RefreshControl, Dimensions, Image } from 'react-native'
 import { useFocusEffect } from 'expo-router'
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
 import { ThemedView } from '../../../components/themed/ThemedView'
@@ -126,13 +126,39 @@ export default function DashboardScreen() {
         }
       >
         {/* Header */}
-        <View style={{ marginBottom: 32 }}>
-          <ThemedText variant="secondary" style={{ fontSize: 14, marginBottom: 4 }}>
-            Welcome back,
-          </ThemedText>
-          <ThemedText weight="bold" style={{ fontSize: 32 }}>
-            {profile?.full_name || 'Student'}
-          </ThemedText>
+        <View style={{ marginBottom: 32, flexDirection: 'row', alignItems: 'center' }}>
+          <View
+            style={{
+              width: 64,
+              height: 64,
+              borderRadius: 32,
+              backgroundColor: colors.card,
+              borderWidth: 3,
+              borderColor: colors.accent,
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginRight: 16,
+              overflow: 'hidden',
+            }}
+          >
+            {profile?.profile_picture_url ? (
+              <Image
+                source={{ uri: profile.profile_picture_url }}
+                style={{ width: '100%', height: '100%' }}
+                resizeMode="cover"
+              />
+            ) : (
+              <Ionicons name="person" size={32} color={colors.textSecondary} />
+            )}
+          </View>
+          <View style={{ flex: 1 }}>
+            <ThemedText variant="secondary" style={{ fontSize: 14, marginBottom: 4 }}>
+              Welcome back,
+            </ThemedText>
+            <ThemedText weight="bold" style={{ fontSize: 28 }}>
+              {profile?.full_name || 'Student'}
+            </ThemedText>
+          </View>
         </View>
 
         {/* Main Progress Card */}

@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { View, ScrollView, TouchableOpacity, RefreshControl, Modal, Pressable } from 'react-native'
+import { View, ScrollView, TouchableOpacity, RefreshControl, Modal, Pressable, Image } from 'react-native'
 import { useRouter, useFocusEffect } from 'expo-router'
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -224,22 +224,36 @@ export default function ProfileScreen() {
           />
         }
       >
-        {/* Header with Profile Picture Placeholder */}
+        {/* Header with Profile Picture */}
         <View style={{ alignItems: 'center', marginBottom: 32 }}>
           <View
             style={{
-              width: 100,
-              height: 100,
-              borderRadius: 50,
+              width: 120,
+              height: 120,
+              borderRadius: 60,
               backgroundColor: colors.card,
               justifyContent: 'center',
               alignItems: 'center',
               marginBottom: 16,
-              borderWidth: 3,
+              borderWidth: 4,
               borderColor: colors.accent,
+              overflow: 'hidden',
+              shadowColor: colors.accent,
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+              elevation: 8,
             }}
           >
-            <Ionicons name="person" size={48} color={colors.accent} />
+            {profile?.profile_picture_url ? (
+              <Image
+                source={{ uri: profile.profile_picture_url }}
+                style={{ width: '100%', height: '100%' }}
+                resizeMode="cover"
+              />
+            ) : (
+              <Ionicons name="person" size={60} color={colors.accent} />
+            )}
           </View>
           <ThemedText weight="bold" style={{ fontSize: 28, marginBottom: 4 }}>
             {profile?.full_name || 'User'}

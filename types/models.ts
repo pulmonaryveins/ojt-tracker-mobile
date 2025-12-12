@@ -42,6 +42,9 @@ export interface Session {
   total_hours: number
   breaks: Break[] | null
   description: string | null
+  tasks_completed: string | null
+  lessons_learned: string | null
+  report_images: string[] | null
   created_at: string
   updated_at: string
 }

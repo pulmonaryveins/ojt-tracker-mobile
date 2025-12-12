@@ -104,6 +104,9 @@ export interface Database {
           duration: number
           total_hours: number
           description: string | null
+          tasks_completed: string | null
+          lessons_learned: string | null
+          report_images: string[] | null
           created_at: string
           updated_at: string
         }
@@ -116,6 +119,9 @@ export interface Database {
           duration?: number
           total_hours?: number
           description?: string | null
+          tasks_completed?: string | null
+          lessons_learned?: string | null
+          report_images?: string[] | null
           created_at?: string
           updated_at?: string
         }
@@ -128,6 +134,9 @@ export interface Database {
           duration?: number
           total_hours?: number
           description?: string | null
+          tasks_completed?: string | null
+          lessons_learned?: string | null
+          report_images?: string[] | null
           created_at?: string
           updated_at?: string
         }

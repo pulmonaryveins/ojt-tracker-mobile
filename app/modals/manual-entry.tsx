@@ -27,7 +27,6 @@ export default function ManualEntryModal() {
   const [date, setDate] = useState(new Date().toISOString())
   const [timeIn, setTimeIn] = useState('')
   const [timeOut, setTimeOut] = useState('')
-  const [description, setDescription] = useState('')
   const [breaks, setBreaks] = useState<ManualBreak[]>([])
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<{ [key: string]: string }>({})
@@ -261,7 +260,7 @@ export default function ManualEntryModal() {
         timeInFormatted,
         timeOutFormatted,
         totalHours,
-        description.trim() || null,
+        null, // description removed - use Session Report instead
         breakRecords.length > 0 ? breakRecords : null
       )
 
@@ -347,13 +346,23 @@ export default function ManualEntryModal() {
           >
             <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
-          <View style={{ flex: 1 }}>
-            <ThemedText weight="bold" style={{ fontSize: 28 }}>
-              Manual Time Entry
-            </ThemedText>
-            <ThemedText variant="secondary" style={{ fontSize: 14, marginTop: 4 }}>
-              Enter your time manually for days you forgot to clock in/out
-            </ThemedText>
+          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
+            <View style={{ 
+              backgroundColor: colors.accent + '20',
+              padding: 10,
+              borderRadius: 14,
+              marginRight: 12,
+            }}>
+              <Ionicons name="create-outline" size={24} color={colors.accent} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <ThemedText weight="bold" style={{ fontSize: 28 }}>
+                Manual Time Entry
+              </ThemedText>
+              <ThemedText variant="secondary" style={{ fontSize: 14, marginTop: 4 }}>
+                Enter your time manually for days you forgot to clock in/out
+              </ThemedText>
+            </View>
           </View>
         </View>
 
@@ -402,31 +411,6 @@ export default function ManualEntryModal() {
           mode="time"
           placeholder="Select time out"
         />
-
-        {/* Description */}
-        <View style={{ marginBottom: 16 }}>
-          <ThemedText weight="medium" style={{ fontSize: 14, marginBottom: 8 }}>
-            Task Description
-          </ThemedText>
-          <TextInput
-            style={{
-              backgroundColor: colors.background,
-              borderWidth: 1,
-              borderColor: colors.border,
-              borderRadius: 8,
-              padding: 12,
-              color: colors.text,
-              fontSize: 14,
-              minHeight: 80,
-              textAlignVertical: 'top',
-            }}
-            placeholder="What did you work on?"
-            placeholderTextColor={colors.textSecondary}
-            value={description}
-            onChangeText={setDescription}
-            multiline
-          />
-        </View>
 
         {/* Breaks Section */}
         <ThemedCard style={{ padding: 20, marginBottom: 16 }}>

@@ -28,9 +28,10 @@ export default function LogsScreen() {
   const [refreshing, setRefreshing] = useState(false)
   const [view, setView] = useState<'list' | 'calendar'>('list')
   const [searchQuery, setSearchQuery] = useState('')
-  const [deleteModalVisible, setDeleteModalVisible] = useState(false)
-  const [sessionToDelete, setSessionToDelete] = useState<Session | null>(null)
   const [exportingAll, setExportingAll] = useState(false)
+  const [selectedMonth, setSelectedMonth] = useState<string>('all')
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
 
   useFocusEffect(
     useCallback(() => {
@@ -40,7 +41,7 @@ export default function LogsScreen() {
 
   useEffect(() => {
     filterSessions()
-  }, [sessions, searchQuery])
+  }, [sessions, searchQuery, selectedMonth])
 
   const loadSessions = async () => {
     if (!user?.id) {
@@ -72,29 +73,39 @@ export default function LogsScreen() {
   }
 
   const filterSessions = () => {
-    if (!searchQuery.trim()) {
-      setFilteredSessions(sessions)
-      return
+    let filtered = sessions
+
+    // Filter by month
+    if (selectedMonth !== 'all') {
+      filtered = filtered.filter(session => {
+        const sessionDate = new Date(session.date)
+        const monthYear = `${sessionDate.getFullYear()}-${String(sessionDate.getMonth() + 1).padStart(2, '0')}`
+        return monthYear === selectedMonth
+      })
     }
 
-    const query = searchQuery.toLowerCase()
-    const filtered = sessions.filter(session => {
-      const date = new Date(session.date).toLocaleDateString('en-US', { 
-        month: 'long', 
-        day: 'numeric', 
-        year: 'numeric' 
-      }).toLowerCase()
-      const description = (session.description || '').toLowerCase()
-      const startTime = formatTime12Hour(session.start_time).toLowerCase()
-      const endTime = formatTime12Hour(session.end_time).toLowerCase()
-      
-      return date.includes(query) || 
-             description.includes(query) ||
-             startTime.includes(query) ||
-             endTime.includes(query)
-    })
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase()
+      filtered = filtered.filter(session => {
+        const date = new Date(session.date).toLocaleDateString('en-US', { 
+          month: 'long', 
+          day: 'numeric', 
+          year: 'numeric' 
+        }).toLowerCase()
+        const description = (session.description || '').toLowerCase()
+        const startTime = formatTime12Hour(session.start_time).toLowerCase()
+        const endTime = formatTime12Hour(session.end_time).toLowerCase()
+        
+        return date.includes(query) || 
+               description.includes(query) ||
+               startTime.includes(query) ||
+               endTime.includes(query)
+      })
+    }
     
     setFilteredSessions(filtered)
+    setCurrentPage(1) // Reset to first page when filters change
   }
 
   const onRefresh = useCallback(() => {
@@ -111,34 +122,6 @@ export default function LogsScreen() {
       return `${hour12}:${String(minutes).padStart(2, '0')} ${period}`
     } catch {
       return time
-    }
-  }
-
-  const handleDeleteSession = (session: Session) => {
-    setSessionToDelete(session)
-    setDeleteModalVisible(true)
-  }
-
-  const confirmDelete = async () => {
-    if (!sessionToDelete) return
-
-    try {
-      setDeleteModalVisible(false)
-      
-      const { error } = await supabase
-        .from('sessions')
-        .delete()
-        .eq('id', sessionToDelete.id)
-
-      if (error) throw error
-
-      Alert.alert('Success', 'Session deleted successfully')
-      loadSessions()
-    } catch (error) {
-      console.error('Error deleting session:', error)
-      Alert.alert('Error', 'Failed to delete session')
-    } finally {
-      setSessionToDelete(null)
     }
   }
 
@@ -169,9 +152,31 @@ export default function LogsScreen() {
     }
   }
 
+  // Get unique months from sessions
+  const getAvailableMonths = () => {
+    const months = new Set<string>()
+    sessions.forEach(session => {
+      const date = new Date(session.date)
+      const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+      months.add(monthYear)
+    })
+    return Array.from(months).sort().reverse()
+  }
+
+  const formatMonthLabel = (monthYear: string) => {
+    const [year, month] = monthYear.split('-')
+    const date = new Date(parseInt(year), parseInt(month) - 1)
+    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+  }
+
+  // Pagination
+  const totalPages = Math.ceil(filteredSessions.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const displaySessions = filteredSessions.slice(startIndex, endIndex)
+
   const totalHours = sessions.reduce((sum, session) => sum + session.total_hours, 0)
   const avgHoursPerDay = sessions.length > 0 ? totalHours / sessions.length : 0
-  const displaySessions = filteredSessions
 
   if (loading) {
     return (
@@ -231,41 +236,88 @@ export default function LogsScreen() {
           </ThemedText>
         </View>
 
-        {/* Search Bar */}
+        {/* Search Bar and Month Filter */}
         <View style={{ marginBottom: 20 }}>
-          <View style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            backgroundColor: colors.card,
-            borderRadius: 12,
-            paddingHorizontal: 16,
-            paddingVertical: 4,
-            borderWidth: 1,
-            borderColor: searchQuery ? colors.accent : colors.border,
-          }}>
-            <Ionicons name="search" size={20} color={colors.textSecondary} style={{ marginRight: 12 }} />
-            <TextInput
-              placeholder="Search by date, tasks, or keywords..."
-              placeholderTextColor={colors.textSecondary}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              style={{
-                flex: 1,
-                color: colors.text,
-                fontSize: 15,
-                paddingVertical: 12,
-                fontFamily: 'System',
+          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+            {/* Search Bar */}
+            <View style={{
+              flex: 1,
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: colors.card,
+              borderRadius: 12,
+              paddingHorizontal: 16,
+              paddingVertical: 4,
+              borderWidth: 1,
+              borderColor: searchQuery ? colors.accent : colors.border,
+            }}>
+              <Ionicons name="search" size={20} color={colors.textSecondary} style={{ marginRight: 12 }} />
+              <TextInput
+                placeholder="Search sessions..."
+                placeholderTextColor={colors.textSecondary}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                style={{
+                  flex: 1,
+                  color: colors.text,
+                  fontSize: 15,
+                  paddingVertical: 12,
+                  fontFamily: 'System',
+                }}
+              />
+              {searchQuery !== '' && (
+                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                  <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Month Filter */}
+            <TouchableOpacity
+              onPress={() => {
+                // Cycle through available months
+                const months = ['all', ...getAvailableMonths()]
+                const currentIndex = months.indexOf(selectedMonth)
+                const nextIndex = (currentIndex + 1) % months.length
+                setSelectedMonth(months[nextIndex])
               }}
-            />
-            {searchQuery !== '' && (
-              <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
-              </TouchableOpacity>
-            )}
+              style={{
+                backgroundColor: selectedMonth !== 'all' ? colors.accent : colors.card,
+                borderRadius: 12,
+                paddingHorizontal: 16,
+                paddingVertical: 12,
+                borderWidth: 1,
+                borderColor: selectedMonth !== 'all' ? colors.accent : colors.border,
+                minWidth: 120,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons 
+                  name="calendar-outline" 
+                  size={18} 
+                  color={selectedMonth !== 'all' ? '#fff' : colors.text} 
+                  style={{ marginRight: 6 }} 
+                />
+                <ThemedText 
+                  weight="semibold" 
+                  style={{ 
+                    fontSize: 13, 
+                    color: selectedMonth !== 'all' ? '#fff' : colors.text 
+                  }}
+                  numberOfLines={1}
+                >
+                  {selectedMonth === 'all' ? 'All' : formatMonthLabel(selectedMonth).split(' ')[0]}
+                </ThemedText>
+              </View>
+            </TouchableOpacity>
           </View>
-          {searchQuery !== '' && (
-            <ThemedText variant="secondary" style={{ fontSize: 12, marginTop: 8, marginLeft: 4 }}>
-              Found {displaySessions.length} session{displaySessions.length !== 1 ? 's' : ''}
+          
+          {(searchQuery !== '' || selectedMonth !== 'all') && (
+            <ThemedText variant="secondary" style={{ fontSize: 12, marginLeft: 4 }}>
+              {selectedMonth !== 'all' && `${formatMonthLabel(selectedMonth)} • `}
+              Found {filteredSessions.length} session{filteredSessions.length !== 1 ? 's' : ''}
             </ThemedText>
           )}
         </View>
@@ -455,35 +507,19 @@ export default function LogsScreen() {
                             flexDirection: 'row',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            paddingVertical: 12,
-                            backgroundColor: colors.accent + '15',
-                            borderRadius: 8,
-                            borderWidth: 1,
-                            borderColor: colors.accent + '30',
+                            paddingVertical: 14,
+                            backgroundColor: colors.accent,
+                            borderRadius: 10,
+                            shadowColor: colors.accent,
+                            shadowOffset: { width: 0, height: 2 },
+                            shadowOpacity: 0.2,
+                            shadowRadius: 4,
+                            elevation: 3,
                           }}
                         >
-                          <Ionicons name="create-outline" size={18} color={colors.accent} style={{ marginRight: 6 }} />
-                          <ThemedText weight="semibold" style={{ fontSize: 13, color: colors.accent }}>
-                            Edit
-                          </ThemedText>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          onPress={() => handleDeleteSession(session)}
-                          style={{
-                            flex: 1,
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            paddingVertical: 12,
-                            backgroundColor: '#ed424515',
-                            borderRadius: 8,
-                            borderWidth: 1,
-                            borderColor: '#ed424530',
-                          }}
-                        >
-                          <Ionicons name="trash-outline" size={18} color="#ed4245" style={{ marginRight: 6 }} />
-                          <ThemedText weight="semibold" style={{ fontSize: 13, color: '#ed4245' }}>
-                            Delete
+                          <Ionicons name="eye-outline" size={20} color="#fff" style={{ marginRight: 8 }} />
+                          <ThemedText weight="semibold" style={{ fontSize: 14, color: '#fff' }}>
+                            View Session
                           </ThemedText>
                         </TouchableOpacity>
                       </View>
@@ -493,51 +529,89 @@ export default function LogsScreen() {
               )}
             </View>
 
-            {/* Export Button */}
-            {sessions.length > 0 && (
-              <TouchableOpacity
-                style={{
-                  padding: 16,
-                  backgroundColor: colors.card,
-                  borderRadius: 8,
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginBottom: 24,
-                }}
-              >
-                <Ionicons name="download-outline" size={20} color={colors.accent} style={{ marginRight: 8 }} />
-                <ThemedText weight="semibold" style={{ color: colors.accent }}>
-                  Export to PDF
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <View style={{ marginTop: 24, marginBottom: 16 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  <TouchableOpacity
+                    onPress={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                    style={{
+                      backgroundColor: currentPage === 1 ? colors.secondary : colors.accent,
+                      paddingHorizontal: 16,
+                      paddingVertical: 10,
+                      borderRadius: 8,
+                      opacity: currentPage === 1 ? 0.5 : 1,
+                    }}
+                  >
+                    <Ionicons name="chevron-back" size={20} color={currentPage === 1 ? colors.textSecondary : '#fff'} />
+                  </TouchableOpacity>
+
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum
+                      if (totalPages <= 5) {
+                        pageNum = i + 1
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i
+                      } else {
+                        pageNum = currentPage - 2 + i
+                      }
+
+                      return (
+                        <TouchableOpacity
+                          key={pageNum}
+                          onPress={() => setCurrentPage(pageNum)}
+                          style={{
+                            backgroundColor: currentPage === pageNum ? colors.accent : colors.card,
+                            paddingHorizontal: 14,
+                            paddingVertical: 10,
+                            borderRadius: 8,
+                            borderWidth: 1,
+                            borderColor: currentPage === pageNum ? colors.accent : colors.border,
+                            minWidth: 40,
+                            alignItems: 'center',
+                          }}
+                        >
+                          <ThemedText
+                            weight="semibold"
+                            style={{
+                              fontSize: 14,
+                              color: currentPage === pageNum ? '#fff' : colors.text,
+                            }}
+                          >
+                            {pageNum}
+                          </ThemedText>
+                        </TouchableOpacity>
+                      )
+                    })}
+                  </View>
+
+                  <TouchableOpacity
+                    onPress={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                    style={{
+                      backgroundColor: currentPage === totalPages ? colors.secondary : colors.accent,
+                      paddingHorizontal: 16,
+                      paddingVertical: 10,
+                      borderRadius: 8,
+                      opacity: currentPage === totalPages ? 0.5 : 1,
+                    }}
+                  >
+                    <Ionicons name="chevron-forward" size={20} color={currentPage === totalPages ? colors.textSecondary : '#fff'} />
+                  </TouchableOpacity>
+                </View>
+
+                <ThemedText variant="secondary" style={{ fontSize: 12, textAlign: 'center', marginTop: 12 }}>
+                  Page {currentPage} of {totalPages} • Showing {startIndex + 1}-{Math.min(endIndex, filteredSessions.length)} of {filteredSessions.length}
                 </ThemedText>
-              </TouchableOpacity>
+              </View>
             )}
           </>
         )}
       </ScrollView>
-
-      {/* Delete Confirmation Modal */}
-      <Modal
-        visible={deleteModalVisible}
-        onClose={() => setDeleteModalVisible(false)}
-        title="Delete Session"
-        type="warning"
-        message={`Are you sure you want to delete this session?\n\nDate: ${sessionToDelete ? new Date(sessionToDelete.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : ''}\nHours: ${sessionToDelete?.total_hours.toFixed(1) || 0}h\n\nThis action cannot be undone.`}
-        actions={[
-          {
-            text: 'Cancel',
-            onPress: () => setDeleteModalVisible(false),
-            variant: 'outline',
-          },
-          {
-            text: 'Delete',
-            onPress: confirmDelete,
-            variant: 'danger',
-          },
-        ]}
-      />
     </ThemedView>
   )
 

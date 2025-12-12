@@ -199,10 +199,20 @@ export default function EditProfileScreen() {
           }}
           showsVerticalScrollIndicator={false}
         >
-          <ThemedText weight="bold" style={{ fontSize: 30, marginBottom: 8 }}>
-            Edit Profile ✏️
-          </ThemedText>
-          <ThemedText variant="secondary" style={{ fontSize: 16, marginBottom: 32 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+            <View style={{ 
+              backgroundColor: colors.accent + '20',
+              padding: 12,
+              borderRadius: 16,
+              marginRight: 16,
+            }}>
+              <Ionicons name="create-outline" size={28} color={colors.accent} />
+            </View>
+            <ThemedText weight="bold" style={{ fontSize: 30 }}>
+              Edit Profile
+            </ThemedText>
+          </View>
+          <ThemedText variant="secondary" style={{ fontSize: 16, marginBottom: 32, marginLeft: 60 }}>
             Update your OJT information
           </ThemedText>
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { View, ScrollView, TouchableOpacity, Alert, Switch } from 'react-native'
 import { useRouter } from 'expo-router'
+import { Ionicons } from '@expo/vector-icons'
 import { ThemedView } from '../../../components/themed/ThemedView'
 import { ThemedText } from '../../../components/themed/ThemedText'
 import { ThemedCard } from '../../../components/themed/ThemedCard'
@@ -19,10 +20,17 @@ export default function SettingsScreen() {
   
   const [dailyReminder, setDailyReminder] = useState(false)
   const [breakReminder, setBreakReminder] = useState(false)
+  const [autoSync, setAutoSync] = useState(true)
 
   useEffect(() => {
     loadNotificationSettings()
+    loadSettings()
   }, [])
+
+  const loadSettings = async () => {
+    const autoSyncValue = await AsyncStorage.getItem('auto-sync')
+    setAutoSync(autoSyncValue !== 'false')
+  }
 
   const loadNotificationSettings = async () => {
     const daily = await AsyncStorage.getItem('daily-reminder')
@@ -67,6 +75,23 @@ export default function SettingsScreen() {
     }
   }
 
+  const handleAccentChange = (color: AccentColor) => {
+    setAccent(color)
+    // Force re-render to update navigation colors
+    setTimeout(() => {
+      router.replace('/(app)/(profile)/settings')
+    }, 100)
+  }
+
+  const handleAutoSyncToggle = async (value: boolean) => {
+    setAutoSync(value)
+    await AsyncStorage.setItem('auto-sync', value.toString())
+    Alert.alert(
+      value ? 'Auto-Sync Enabled' : 'Auto-Sync Disabled',
+      value ? 'Data will sync automatically when online' : 'You\'ll need to sync manually'
+    )
+  }
+
   const accentColors: { color: AccentColor; name: string; hex: string }[] = [
     { color: 'blurple', name: 'Blurple', hex: '#5865f2' },
     { color: 'pink', name: 'Pink', hex: '#eb459e' },
@@ -96,67 +121,111 @@ export default function SettingsScreen() {
   return (
     <ThemedView style={{ flex: 1 }}>
       <ScrollView style={{ flex: 1, paddingHorizontal: 24, paddingVertical: 32 }}>
-        <ThemedText weight="bold" style={{ fontSize: 30, marginBottom: 8 }}>
-          Settings ⚙️
-        </ThemedText>
-        <ThemedText variant="secondary" style={{ fontSize: 16, marginBottom: 32 }}>
-          Customize your app experience
-        </ThemedText>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+          <View style={{ 
+            backgroundColor: colors.accent + '20',
+            padding: 12,
+            borderRadius: 16,
+            marginRight: 16,
+          }}>
+            <Ionicons name="settings-outline" size={32} color={colors.accent} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <ThemedText weight="bold" style={{ fontSize: 28, marginBottom: 4 }}>
+              Settings
+            </ThemedText>
+            <ThemedText variant="secondary" style={{ fontSize: 14 }}>
+              Customize your app experience
+            </ThemedText>
+          </View>
+        </View>
+        <View style={{ height: 24 }} />
 
         {/* Appearance */}
-        <ThemedCard style={{ marginBottom: 16 }}>
-          <ThemedText variant="secondary" style={{ fontSize: 14, marginBottom: 16 }}>
-            🎨 Appearance
-          </ThemedText>
+        <ThemedCard style={{ marginBottom: 16, padding: 20 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
+            <Ionicons name="color-palette-outline" size={24} color={colors.accent} style={{ marginRight: 12 }} />
+            <ThemedText weight="semibold" style={{ fontSize: 18 }}>
+              Appearance
+            </ThemedText>
+          </View>
           
           <View style={{ 
             flexDirection: 'row', 
             justifyContent: 'space-between', 
             alignItems: 'center',
-            paddingVertical: 12,
+            paddingVertical: 16,
             borderBottomWidth: 1,
             borderBottomColor: colors.border
           }}>
-            <ThemedText>Theme Mode</ThemedText>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons 
+                name={mode === 'dark' ? 'moon' : 'sunny'} 
+                size={20} 
+                color={colors.textSecondary} 
+                style={{ marginRight: 12 }} 
+              />
+              <ThemedText>Theme Mode</ThemedText>
+            </View>
             <TouchableOpacity
               onPress={toggleMode}
               style={{
                 paddingHorizontal: 16,
-                paddingVertical: 8,
-                borderRadius: 8,
-                backgroundColor: colors.tertiary
+                paddingVertical: 10,
+                borderRadius: 10,
+                backgroundColor: colors.accent + '20',
+                borderWidth: 1,
+                borderColor: colors.accent + '40',
+                flexDirection: 'row',
+                alignItems: 'center',
               }}
             >
-              <ThemedText>{mode === 'dark' ? '🌙 Dark' : '☀️ Light'}</ThemedText>
+              <Ionicons 
+                name={mode === 'dark' ? 'moon' : 'sunny'} 
+                size={18} 
+                color={colors.accent} 
+                style={{ marginRight: 8 }} 
+              />
+              <ThemedText weight="semibold" style={{ color: colors.accent }}>
+                {mode === 'dark' ? 'Dark' : 'Light'}
+              </ThemedText>
             </TouchableOpacity>
           </View>
 
-          <View style={{ paddingTop: 12 }}>
-            <ThemedText style={{ marginBottom: 12 }}>Accent Color</ThemedText>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+          <View style={{ paddingTop: 20 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+              <Ionicons name="color-filter-outline" size={20} color={colors.textSecondary} style={{ marginRight: 8 }} />
+              <ThemedText weight="medium">Accent Color</ThemedText>
+            </View>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16 }}>
               {accentColors.map((item) => (
                 <TouchableOpacity
                   key={item.color}
-                  onPress={() => setAccent(item.color)}
+                  onPress={() => handleAccentChange(item.color)}
                   style={{ alignItems: 'center' }}
                 >
                   <View
                     style={{
-                      width: 48,
-                      height: 48,
-                      borderRadius: 24,
+                      width: 56,
+                      height: 56,
+                      borderRadius: 16,
                       backgroundColor: item.hex,
                       alignItems: 'center',
                       justifyContent: 'center',
-                      borderWidth: accent === item.color ? 3 : 0,
-                      borderColor: 'white',
+                      borderWidth: accent === item.color ? 4 : 0,
+                      borderColor: colors.text,
+                      shadowColor: item.hex,
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: accent === item.color ? 0.4 : 0,
+                      shadowRadius: 8,
+                      elevation: accent === item.color ? 8 : 0,
                     }}
                   >
                     {accent === item.color && (
-                      <ThemedText style={{ color: 'white', fontSize: 20 }}>✓</ThemedText>
+                      <Ionicons name="checkmark" size={28} color="white" />
                     )}
                   </View>
-                  <ThemedText variant="muted" style={{ fontSize: 12, marginTop: 4 }}>
+                  <ThemedText variant="secondary" style={{ fontSize: 11, marginTop: 6, fontWeight: accent === item.color ? '600' : '400' }}>
                     {item.name}
                   </ThemedText>
                 </TouchableOpacity>
@@ -165,130 +234,100 @@ export default function SettingsScreen() {
           </View>
         </ThemedCard>
 
-        {/* Notifications */}
-        <ThemedCard style={{ marginBottom: 16 }}>
-          <ThemedText variant="secondary" style={{ fontSize: 14, marginBottom: 16 }}>
-            🔔 Notifications
-          </ThemedText>
-          
+        {/* Data & Sync */}
+        <ThemedCard style={{ marginBottom: 16, padding: 20 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
+            <Ionicons name="cloud-outline" size={24} color={colors.accent} style={{ marginRight: 12 }} />
+            <ThemedText weight="semibold" style={{ fontSize: 18 }}>
+              Data & Sync
+            </ThemedText>
+          </View>
+
           <View style={{ 
-            paddingVertical: 12,
+            flexDirection: 'row', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            paddingVertical: 16,
             borderBottomWidth: 1,
             borderBottomColor: colors.border
           }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <View style={{ flex: 1 }}>
-                <ThemedText weight="semibold">Daily Reminders</ThemedText>
-                <ThemedText variant="muted" style={{ fontSize: 12, marginTop: 4 }}>
-                  Get reminded to log your hours at 9 AM
-                </ThemedText>
+            <View style={{ flex: 1, marginRight: 16 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                <Ionicons name="sync-outline" size={20} color={colors.textSecondary} style={{ marginRight: 8 }} />
+                <ThemedText weight="medium">Auto-Sync</ThemedText>
               </View>
-              <Switch
-                value={dailyReminder}
-                onValueChange={handleDailyReminderToggle}
-                trackColor={{ false: colors.tertiary, true: accentColor }}
-                thumbColor="white"
-              />
+              <ThemedText variant="secondary" style={{ fontSize: 13 }}>
+                Automatically sync data when online
+              </ThemedText>
             </View>
-          </View>
-          
-          <View style={{ paddingVertical: 12 }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <View style={{ flex: 1 }}>
-                <ThemedText weight="semibold">Break Reminders</ThemedText>
-                <ThemedText variant="muted" style={{ fontSize: 12, marginTop: 4 }}>
-                  Get reminded to take breaks every 2 hours
-                </ThemedText>
-              </View>
-              <Switch
-                value={breakReminder}
-                onValueChange={handleBreakReminderToggle}
-                trackColor={{ false: colors.tertiary, true: accentColor }}
-                thumbColor="white"
-              />
-            </View>
-          </View>
-        </ThemedCard>
-
-        {/* Sync Status */}
-        <ThemedCard style={{ marginBottom: 16 }}>
-          <ThemedText variant="secondary" style={{ fontSize: 14, marginBottom: 16 }}>
-            🔄 Sync Status
-          </ThemedText>
-          
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <ThemedText>Pending Syncs:</ThemedText>
-            <ThemedText weight="bold">{pendingSyncs.length}</ThemedText>
+            <Switch
+              value={autoSync}
+              onValueChange={handleAutoSyncToggle}
+              trackColor={{ false: colors.border, true: colors.accent + '80' }}
+              thumbColor={autoSync ? colors.accent : colors.card}
+            />
           </View>
 
-          {pendingSyncs.length > 0 && (
-            <Button
-              variant="outline"
-              onPress={syncPending}
-              loading={isSyncing}
-              disabled={isSyncing}
-            >
-              Sync Now
-            </Button>
-          )}
-        </ThemedCard>
-
-        {/* Data Management */}
-        <ThemedCard style={{ marginBottom: 16 }}>
-          <ThemedText variant="secondary" style={{ fontSize: 14, marginBottom: 16 }}>
-            💾 Data Management
-          </ThemedText>
-          
           <TouchableOpacity
-            style={{ 
-              paddingVertical: 12,
-              borderBottomWidth: 1,
-              borderBottomColor: colors.border
-            }}
             onPress={handleClearCache}
-          >
-            <ThemedText>Clear Cache</ThemedText>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={{ 
-              paddingVertical: 12,
-              borderBottomWidth: 1,
-              borderBottomColor: colors.border
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingVertical: 16,
             }}
-            onPress={() => Alert.alert('Export', 'Export feature coming soon!')}
           >
-            <ThemedText>Export Data</ThemedText>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={{ paddingVertical: 12 }}
-            onPress={() => Alert.alert('Backup', 'Backup feature coming soon!')}
-          >
-            <ThemedText>Backup & Restore</ThemedText>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="trash-outline" size={20} color={colors.textSecondary} style={{ marginRight: 12 }} />
+              <View>
+                <ThemedText weight="medium">Clear Cache</ThemedText>
+                <ThemedText variant="secondary" style={{ fontSize: 13, marginTop: 2 }}>
+                  Remove temporary data
+                </ThemedText>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
         </ThemedCard>
 
-        {/* App Info */}
-        <ThemedCard style={{ marginBottom: 32 }}>
-          <ThemedText variant="secondary" style={{ fontSize: 14, marginBottom: 12 }}>
-            ℹ️ App Information
-          </ThemedText>
-          
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-            <ThemedText variant="secondary">Version:</ThemedText>
-            <ThemedText>1.0.0</ThemedText>
+        {/* About */}
+        <ThemedCard style={{ marginBottom: 24, padding: 20 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
+            <Ionicons name="information-circle-outline" size={24} color={colors.accent} style={{ marginRight: 12 }} />
+            <ThemedText weight="semibold" style={{ fontSize: 18 }}>
+              About
+            </ThemedText>
           </View>
-          
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <ThemedText variant="secondary">Build:</ThemedText>
-            <ThemedText>Beta</ThemedText>
+
+          <View style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+            <ThemedText variant="secondary" style={{ fontSize: 13, marginBottom: 4 }}>Version</ThemedText>
+            <ThemedText weight="medium">1.0.0</ThemedText>
+          </View>
+
+          <View style={{ paddingVertical: 12 }}>
+            <ThemedText variant="secondary" style={{ fontSize: 13, marginBottom: 4 }}>Build</ThemedText>
+            <ThemedText weight="medium">December 2025</ThemedText>
           </View>
         </ThemedCard>
 
-        <Button variant="outline" onPress={() => router.back()}>
-          Back to Profile
-        </Button>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingVertical: 16,
+            paddingHorizontal: 24,
+            backgroundColor: colors.card,
+            borderRadius: 12,
+            borderWidth: 2,
+            borderColor: colors.border,
+            marginBottom: 32,
+          }}
+        >
+          <Ionicons name="arrow-back-outline" size={20} color={colors.text} style={{ marginRight: 8 }} />
+          <ThemedText weight="semibold">Back to Profile</ThemedText>
+        </TouchableOpacity>
       </ScrollView>
     </ThemedView>
   )
