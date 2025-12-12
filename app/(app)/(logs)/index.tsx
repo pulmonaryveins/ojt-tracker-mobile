@@ -130,22 +130,26 @@ export default function LogsScreen() {
   }
 
   const handleExportAll = async () => {
-    if (sessions.length === 0) {
+    if (filteredSessions.length === 0) {
       Alert.alert('No Sessions', 'There are no sessions to export')
       return
     }
 
     setExportingAll(true)
     try {
-      // Transform sessions to include breaks
-      const sessionsToExport: SessionModel[] = sessions.map(s => ({
+      // Transform filtered sessions to include breaks
+      const sessionsToExport: SessionModel[] = filteredSessions.map(s => ({
         ...s,
         breaks: ((s as any).breaks as any) || null,
+        tasks_completed: s.tasks_completed || null,
+        lessons_learned: s.lessons_learned || null,
+        report_images: s.report_images || null,
       }))
       
       await PDFExportService.exportMultipleSessions(sessionsToExport)
-      Alert.alert('Success', `Exported ${sessions.length} sessions to PDF`)
+      Alert.alert('Success', `Exported ${filteredSessions.length} session${filteredSessions.length > 1 ? 's' : ''} to PDF`)
     } catch (error: any) {
+      console.error('PDF Export Error:', error)
       Alert.alert('Error', 'Failed to export sessions: ' + error.message)
     } finally {
       setExportingAll(false)
@@ -210,7 +214,7 @@ export default function LogsScreen() {
             <ThemedText weight="bold" style={{ fontSize: 32 }}>
               Activity Logs
             </ThemedText>
-            {sessions.length > 0 && (
+            {filteredSessions.length > 0 && (
               <TouchableOpacity
                 onPress={handleExportAll}
                 disabled={exportingAll}
@@ -226,7 +230,7 @@ export default function LogsScreen() {
               >
                 <Ionicons name="document-outline" size={18} color="#fff" style={{ marginRight: 6 }} />
                 <ThemedText weight="semibold" style={{ color: '#fff', fontSize: 13 }}>
-                  {exportingAll ? 'Exporting...' : 'Export All'}
+                  {exportingAll ? 'Exporting...' : `Export ${filteredSessions.length === sessions.length ? 'All' : filteredSessions.length}`}
                 </ThemedText>
               </TouchableOpacity>
             )}

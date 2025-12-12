@@ -169,7 +169,9 @@ export default function SessionDetailScreen() {
     setShowExportConfirmModal(false)
     try {
       await PDFExportService.exportSession(session)
-      Alert.alert('Success', 'Report exported successfully!')
+      // Success message handled by platform-specific behavior
+      // Web: Opens print dialog automatically
+      // Mobile: Shows share dialog
     } catch (error: any) {
       Alert.alert('Error', 'Failed to export: ' + error.message)
     } finally {

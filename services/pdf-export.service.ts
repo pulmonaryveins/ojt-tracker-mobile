@@ -1,336 +1,821 @@
 import * as Print from 'expo-print'
 import * as Sharing from 'expo-sharing'
+import * as FileSystem from 'expo-file-system'
+import { Platform } from 'react-native'
 import { Session } from '../types/models'
 import { dateUtils } from '../utils/timezone'
 
 export class PDFExportService {
   static async exportSession(session: Session): Promise<void> {
-    const html = this.generateSessionHTML(session)
-    
-    const { uri } = await Print.printToFileAsync({ html })
-    
-    if (await Sharing.isAvailableAsync()) {
-      await Sharing.shareAsync(uri, {
-        mimeType: 'application/pdf',
-        dialogTitle: `Session-${session.date}.pdf`,
+    try {
+      const html = this.generateSessionHTML(session)
+      const fileName = `OJT-Session-${dateUtils.formatPH(session.date, 'yyyy-MM-dd')}.pdf`
+      
+      console.log('🖨️ Generating PDF for session:', session.id)
+      console.log('📱 Platform:', Platform.OS)
+      
+      // On web, use print API directly (opens print dialog)
+      if (Platform.OS === 'web') {
+        console.log('🌐 Using web print dialog')
+        await Print.printAsync({ html })
+        return
+      }
+      
+      // On native platforms (iOS/Android), generate file and share
+      console.log('📱 Generating PDF file for native platform')
+      const result = await Print.printToFileAsync({ 
+        html,
+        base64: false 
       })
+      
+      if (!result || !result.uri) {
+        throw new Error('Failed to generate PDF file')
+      }
+      
+      console.log('✅ PDF generated:', result.uri)
+      
+      // Share the PDF
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(result.uri, {
+          mimeType: 'application/pdf',
+          dialogTitle: fileName,
+          UTI: 'com.adobe.pdf',
+        })
+      } else {
+        throw new Error('Sharing is not available on this device')
+      }
+    } catch (error) {
+      console.error('PDF Export Error:', error)
+      throw error
     }
   }
 
   static async exportMultipleSessions(sessions: Session[]): Promise<void> {
-    const html = this.generateMultipleSessionsHTML(sessions)
-    
-    const { uri } = await Print.printToFileAsync({ html })
-    
-    if (await Sharing.isAvailableAsync()) {
-      await Sharing.shareAsync(uri, {
-        mimeType: 'application/pdf',
-        dialogTitle: `OJT-Report-${dateUtils.formatPH(new Date(), 'yyyy-MM-dd')}.pdf`,
+    try {
+      if (!sessions || sessions.length === 0) {
+        throw new Error('No sessions to export')
+      }
+      
+      console.log('🖨️ Generating PDF for', sessions.length, 'sessions')
+      console.log('📱 Platform:', Platform.OS)
+      
+      const html = this.generateMultipleSessionsHTML(sessions)
+      const fileName = `OJT-Report-${dateUtils.formatPH(new Date(), 'yyyy-MM-dd')}.pdf`
+      
+      // On web, use print API directly (opens print dialog)
+      if (Platform.OS === 'web') {
+        console.log('🌐 Using web print dialog')
+        await Print.printAsync({ html })
+        return
+      }
+      
+      // On native platforms (iOS/Android), generate file and share
+      console.log('📱 Generating PDF file for native platform')
+      const result = await Print.printToFileAsync({ 
+        html,
+        base64: false 
       })
+      
+      if (!result || !result.uri) {
+        throw new Error('Failed to generate PDF file')
+      }
+      
+      console.log('✅ PDF generated:', result.uri)
+      
+      // Share the PDF
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(result.uri, {
+          mimeType: 'application/pdf',
+          dialogTitle: fileName,
+          UTI: 'com.adobe.pdf',
+        })
+      } else {
+        throw new Error('Sharing is not available on this device')
+      }
+    } catch (error) {
+      console.error('PDF Export Error:', error)
+      throw error
     }
   }
 
   private static generateSessionHTML(session: Session): string {
+    const hasBreaks = session.breaks && session.breaks.length > 0
+    const hasReport = session.tasks_completed || session.lessons_learned || (session.report_images && session.report_images.length > 0)
+    
     return `
       <!DOCTYPE html>
       <html>
         <head>
           <meta charset="utf-8">
-          <title>Session Report</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>OJT Daily Activity Report - ${dateUtils.formatPH(session.date, 'MMM dd, yyyy')}</title>
           <style>
-            body {
-              font-family: 'Helvetica', 'Arial', sans-serif;
-              padding: 40px;
-              color: #2c3e50;
+            @page {
+              margin: 0.75in;
+              size: letter;
             }
-            .header {
-              text-align: center;
-              margin-bottom: 40px;
-              border-bottom: 3px solid #5865f2;
-              padding-bottom: 20px;
-            }
-            h1 {
-              color: #5865f2;
+            * {
               margin: 0;
+              padding: 0;
+              box-sizing: border-box;
             }
-            .subtitle {
-              color: #7289da;
-              font-size: 14px;
+            body {
+              font-family: 'Times New Roman', Times, serif;
+              color: #000;
+              font-size: 12pt;
+              line-height: 1.6;
+              background: white;
             }
-            .section {
+            .document-header {
+              text-align: center;
               margin-bottom: 30px;
-              padding: 20px;
-              background: #f8f9fa;
-              border-radius: 8px;
+              padding-bottom: 15px;
+              border-bottom: 3px double #000;
             }
-            .section-title {
-              color: #5865f2;
+            .document-title {
+              font-size: 22pt;
               font-weight: bold;
+              text-transform: uppercase;
+              margin-bottom: 8px;
+              letter-spacing: 1.5px;
+            }
+            .document-subtitle {
+              font-size: 14pt;
+              font-weight: bold;
+              margin-bottom: 4px;
+            }
+            .document-date {
+              font-size: 12pt;
+              margin-top: 8px;
+              font-style: italic;
+            }
+            .info-section {
+              margin: 25px 0;
+              border: 2px solid #000;
+              padding: 20px;
+              background: #f9f9f9;
+            }
+            .info-section-title {
+              font-size: 13pt;
+              font-weight: bold;
+              text-transform: uppercase;
               margin-bottom: 15px;
-              font-size: 18px;
+              padding-bottom: 8px;
+              border-bottom: 1px solid #333;
             }
             .info-row {
               display: flex;
-              justify-content: space-between;
-              margin-bottom: 10px;
-              padding: 8px 0;
-              border-bottom: 1px solid #e3e5e8;
+              margin: 10px 0;
+              font-size: 11pt;
             }
-            .label {
+            .info-label {
               font-weight: bold;
-              color: #7289da;
+              width: 200px;
+              flex-shrink: 0;
             }
-            .value {
-              color: #2c3e50;
+            .info-value {
+              flex: 1;
+              border-bottom: 1px dotted #666;
+              padding-left: 15px;
+              min-height: 20px;
+            }
+            .hours-highlight {
+              font-size: 14pt;
+              font-weight: bold;
+              color: #000;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin: 10px 0;
+              font-size: 11pt;
+            }
+            table, th, td {
+              border: 1px solid #000;
+            }
+            th {
+              background: #e0e0e0;
+              padding: 8px;
+              text-align: center;
+              font-weight: bold;
+              text-transform: uppercase;
+              font-size: 10pt;
+            }
+            td {
+              padding: 8px;
+              text-align: center;
+            }
+            .section-title {
+              font-size: 13pt;
+              font-weight: bold;
+              text-transform: uppercase;
+              margin: 25px 0 15px 0;
+              padding: 8px 10px;
+              background: #e0e0e0;
+              border: 1px solid #000;
+            }
+            .section-content {
+              margin: 15px 0;
+              padding: 20px;
+              border: 1px solid #666;
+              min-height: 100px;
+              text-align: justify;
             }
             .content-text {
-              line-height: 1.6;
-              color: #2c3e50;
+              white-space: pre-wrap;
+              line-height: 1.8;
             }
-            .break-item {
-              padding: 8px;
-              background: white;
-              margin-bottom: 8px;
-              border-radius: 4px;
+            .empty-field {
+              color: #999;
+              font-style: italic;
+              text-align: center;
+            }
+            .notes-box {
+              margin: 20px 0;
+              padding: 15px;
+              border: 1px solid #000;
+              background: #fafafa;
+              font-size: 10pt;
+            }
+            .signature-section {
+              margin-top: 60px;
+              page-break-inside: avoid;
+            }
+            .certification-text {
+              margin-bottom: 30px;
+              font-size: 11pt;
+              text-align: justify;
+              padding: 15px;
+              border: 1px solid #666;
+              background: #f9f9f9;
+            }
+            .signature-container {
+              display: flex;
+              justify-content: space-between;
+              margin-top: 60px;
+            }
+            .signature-box {
+              flex: 1;
+              text-align: center;
+              margin: 0 20px;
+            }
+            .signature-line {
+              border-top: 2px solid #000;
+              padding-top: 5px;
+              margin-top: 60px;
+            }
+            .signature-label {
+              font-size: 10pt;
+              font-weight: bold;
+              text-transform: uppercase;
+              margin-bottom: 5px;
+            }
+            .signature-date {
+              font-size: 9pt;
+              margin-top: 5px;
             }
             .footer {
-              margin-top: 40px;
+              margin-top: 50px;
+              padding-top: 15px;
+              border-top: 2px solid #000;
               text-align: center;
-              color: #95a5a6;
-              font-size: 12px;
-              border-top: 1px solid #e3e5e8;
-              padding-top: 20px;
+              font-size: 9pt;
+              color: #666;
+            }
+            .footer-divider {
+              margin: 5px 0;
             }
           </style>
         </head>
         <body>
-          <div class="header">
-            <h1>📊 OJT Session Report</h1>
-            <p class="subtitle">${dateUtils.formatPH(session.date, 'EEEE, MMMM dd, yyyy')}</p>
+          <!-- Document Header -->
+          <div class="document-header">
+            <div class="document-title">On-The-Job Training</div>
+            <div class="document-subtitle">Daily Activity Report</div>
+            <div class="document-date">${dateUtils.formatPH(session.date, 'EEEE, MMMM dd, yyyy')}</div>
           </div>
 
-          <div class="section">
-            <div class="section-title">⏰ Time Information</div>
+          <!-- Time Information Section -->
+          <div class="info-section">
+            <div class="info-section-title">I. Time Record</div>
             <div class="info-row">
-              <span class="label">Start Time:</span>
-              <span class="value">${dateUtils.formatPH(session.start_time, 'hh:mm:ss a')}</span>
+              <span class="info-label">Date of Activity:</span>
+              <span class="info-value">${dateUtils.formatPH(session.date, 'MMMM dd, yyyy')}</span>
             </div>
             <div class="info-row">
-              <span class="label">End Time:</span>
-              <span class="value">${session.end_time ? dateUtils.formatPH(session.end_time, 'hh:mm:ss a') : 'Not ended'}</span>
+              <span class="info-label">Day of Week:</span>
+              <span class="info-value">${dateUtils.formatPH(session.date, 'EEEE')}</span>
             </div>
             <div class="info-row">
-              <span class="label">Total Hours:</span>
-              <span class="value" style="font-size: 20px; font-weight: bold; color: #5865f2;">${session.total_hours.toFixed(2)}h</span>
+              <span class="info-label">Time In:</span>
+              <span class="info-value">${this.formatTimeOnly(session.start_time)}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Time Out:</span>
+              <span class="info-value">${session.end_time ? this.formatTimeOnly(session.end_time) : 'Session Ongoing'}</span>
+            </div>
+            ${hasBreaks ? `
+              <div class="info-row">
+                <span class="info-label">Break Periods:</span>
+                <span class="info-value">${session.breaks!.length} break${session.breaks!.length > 1 ? 's' : ''} taken</span>
+              </div>
+            ` : ''}
+            <div class="info-row">
+              <span class="info-label">Total Hours Rendered:</span>
+              <span class="info-value hours-highlight">${session.total_hours.toFixed(2)} Hours</span>
             </div>
           </div>
 
-          ${session.description ? `
-            <div class="section">
-              <div class="section-title">📝 Description</div>
-              <p class="content-text">${session.description}</p>
-            </div>
+          ${hasBreaks ? `
+            <!-- Break Details Table -->
+            <div class="section-title">Break Period Details</div>
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 20%;">Break No.</th>
+                  <th style="width: 40%;">Start Time</th>
+                  <th style="width: 40%;">End Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${session.breaks!.map((brk, index) => `
+                  <tr>
+                    <td>Break ${index + 1}</td>
+                    <td>${this.formatTimeOnly(brk.start)}</td>
+                    <td>${brk.end ? this.formatTimeOnly(brk.end) : 'Ongoing'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
           ` : ''}
 
-          ${session.tasks_completed || session.lessons_learned ? `
-            <div class="section">
-              <div class="section-title">📋 Session Report</div>
-              ${session.tasks_completed ? `
-                <div style="margin-bottom: 20px;">
-                  <div style="font-weight: bold; color: #5865f2; margin-bottom: 8px;">✅ Tasks Completed</div>
-                  <p class="content-text">${session.tasks_completed}</p>
+          <!-- Work Description -->
+          <div class="section-title">II. Work Description / Activities Performed</div>
+          <div class="section-content">
+            ${session.description ? `
+              <div class="content-text">${session.description}</div>
+            ` : `
+              <div class="empty-field">[No description provided]</div>
+            `}
+          </div>
+
+          ${hasReport ? `
+            <!-- Report Section -->
+            <div class="section-title">III. Session Report</div>
+
+            ${session.tasks_completed ? `
+              <div style="margin: 20px 0;">
+                <div style="font-weight: bold; font-size: 11pt; margin-bottom: 10px; padding: 5px 10px; background: #e8f5e9; border-left: 4px solid #4caf50;">
+                  A. Tasks Completed
                 </div>
-              ` : ''}
-              ${session.lessons_learned ? `
-                <div>
-                  <div style="font-weight: bold; color: #5865f2; margin-bottom: 8px;">💡 Lessons Learned</div>
-                  <p class="content-text">${session.lessons_learned}</p>
+                <div class="section-content">
+                  <div class="content-text">${session.tasks_completed}</div>
                 </div>
-              ` : ''}
-              ${session.report_images && session.report_images.length > 0 ? `
-                <div style="margin-top: 20px;">
-                  <div style="font-weight: bold; color: #5865f2; margin-bottom: 8px;">📷 Photos (${session.report_images.length})</div>
-                  <p class="content-text" style="font-size: 12px; color: #7289da;">Images attached to this session report</p>
+              </div>
+            ` : ''}
+
+            ${session.lessons_learned ? `
+              <div style="margin: 20px 0;">
+                <div style="font-weight: bold; font-size: 11pt; margin-bottom: 10px; padding: 5px 10px; background: #fff3e0; border-left: 4px solid #ff9800;">
+                  B. Lessons Learned / Skills Acquired
                 </div>
-              ` : ''}
-            </div>
+                <div class="section-content">
+                  <div class="content-text">${session.lessons_learned}</div>
+                </div>
+              </div>
+            ` : ''}
+
+            ${session.report_images && session.report_images.length > 0 ? `
+              <div style="margin: 20px 0;">
+                <div style="font-weight: bold; font-size: 11pt; margin-bottom: 10px; padding: 5px 10px; background: #e3f2fd; border-left: 4px solid #2196f3;">
+                  C. Supporting Documents / Photos
+                </div>
+                <div class="section-content">
+                  <div class="content-text">
+                    <strong>${session.report_images.length}</strong> supporting document${session.report_images.length > 1 ? 's' : ''} ${session.report_images.length > 1 ? 'have' : 'has'} been attached to this activity report.
+                  </div>
+                </div>
+              </div>
+            ` : ''}
           ` : ''}
 
+          <!-- Important Note -->
+          <div class="notes-box">
+            <strong>Note:</strong> This document serves as official documentation of on-the-job training hours and activities. 
+            All information provided must be accurate and verifiable. This report may be used for academic credit, 
+            professional evaluation, or institutional compliance purposes.
+          </div>
+
+          <!-- Signature Section -->
+          <div class="signature-section">
+            <div class="certification-text">
+              <strong>CERTIFICATION:</strong><br/><br/>
+              I hereby certify that the information stated above is true and accurate to the best of my knowledge. 
+              I have completed the indicated hours of training and performed the described activities on the specified date. 
+              This document is submitted for official record and evaluation purposes.
+            </div>
+            
+            <div class="signature-container">
+              <div class="signature-box">
+                <div class="signature-line">
+                  <div class="signature-label">Trainee / Student</div>
+                  <div class="signature-date">Date: _________________</div>
+                </div>
+              </div>
+              <div class="signature-box">
+                <div class="signature-line">
+                  <div class="signature-label">Supervisor / Mentor</div>
+                  <div class="signature-date">Date: _________________</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Footer -->
           <div class="footer">
-            <p>Generated by OJT Tracker on ${dateUtils.formatPH(new Date(), 'MMMM dd, yyyy')}</p>
-            <p>This is an official record of OJT hours completed</p>
+            <p><strong>OJT TRACKER - PROFESSIONAL TRAINING MANAGEMENT SYSTEM</strong></p>
+            <div class="footer-divider">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
+            <p>Document Generated: ${dateUtils.formatPH(new Date(), 'MMMM dd, yyyy')} at ${dateUtils.formatPH(new Date(), 'hh:mm a')}</p>
+            <p>Document ID: OJT-${session.id.substring(0, 8).toUpperCase()}-${dateUtils.formatPH(session.date, 'yyyyMMdd')}</p>
+            <p style="margin-top: 10px; font-size: 8pt; font-style: italic;">
+              This is a system-generated document. For verification purposes, please contact the issuing institution.
+            </p>
           </div>
         </body>
       </html>
     `
   }
 
+  private static formatTimeOnly(timeStr: string | null): string {
+    if (!timeStr) return '-'
+    try {
+      const [hours, minutes, seconds] = timeStr.split(':').map(Number)
+      const period = hours >= 12 ? 'PM' : 'AM'
+      const hour12 = hours % 12 || 12
+      return `${hour12}:${String(minutes).padStart(2, '0')}:${String(seconds || 0).padStart(2, '0')} ${period}`
+    } catch {
+      return timeStr
+    }
+  }
+
   private static generateMultipleSessionsHTML(sessions: Session[]): string {
     const totalHours = sessions.reduce((sum, s) => sum + s.total_hours, 0)
+    const startDate = sessions[sessions.length - 1]?.date
+    const endDate = sessions[0]?.date
     
     return `
       <!DOCTYPE html>
       <html>
         <head>
           <meta charset="utf-8">
-          <title>OJT Report</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>OJT Training Report</title>
           <style>
-            body {
-              font-family: 'Helvetica', 'Arial', sans-serif;
-              padding: 40px;
-              color: #2c3e50;
+            @page {
+              margin: 0.75in;
+              size: letter;
             }
-            .header {
-              text-align: center;
-              margin-bottom: 40px;
-              border-bottom: 3px solid #5865f2;
-              padding-bottom: 20px;
-            }
-            h1 {
-              color: #5865f2;
+            * {
               margin: 0;
+              padding: 0;
+              box-sizing: border-box;
             }
-            .summary {
-              display: flex;
-              justify-content: space-around;
-              margin-bottom: 40px;
-              padding: 20px;
-              background: #f8f9fa;
-              border-radius: 8px;
-            }
-            .stat {
-              text-align: center;
-            }
-            .stat-value {
-              font-size: 32px;
-              font-weight: bold;
-              color: #5865f2;
-            }
-            .stat-label {
-              color: #7289da;
-              font-size: 14px;
-            }
-            .session-card {
-              margin-bottom: 20px;
-              padding: 20px;
+            body {
+              font-family: 'Times New Roman', Times, serif;
+              color: #000;
+              font-size: 12pt;
+              line-height: 1.6;
               background: white;
-              border: 1px solid #e3e5e8;
-              border-radius: 8px;
             }
-            .session-header {
+            .document-header {
+              text-align: center;
+              margin-bottom: 30px;
+              padding-bottom: 15px;
+              border-bottom: 3px double #000;
+            }
+            .document-title {
+              font-size: 20pt;
+              font-weight: bold;
+              text-transform: uppercase;
+              margin-bottom: 8px;
+              letter-spacing: 1px;
+            }
+            .document-subtitle {
+              font-size: 14pt;
+              margin-bottom: 4px;
+            }
+            .report-info {
+              margin: 20px 0 30px 0;
+              border: 2px solid #000;
+              padding: 15px;
+            }
+            .info-row {
+              display: flex;
+              margin: 8px 0;
+              font-size: 11pt;
+            }
+            .info-label {
+              font-weight: bold;
+              width: 180px;
+              flex-shrink: 0;
+            }
+            .info-value {
+              flex: 1;
+              border-bottom: 1px solid #333;
+              padding-left: 10px;
+            }
+            .section-title {
+              font-size: 14pt;
+              font-weight: bold;
+              text-transform: uppercase;
+              margin: 25px 0 15px 0;
+              padding: 8px 0;
+              border-bottom: 2px solid #000;
+            }
+            .summary-stats {
               display: flex;
               justify-content: space-between;
-              margin-bottom: 15px;
-              padding-bottom: 10px;
-              border-bottom: 2px solid #5865f2;
+              margin: 20px 0;
+              padding: 15px;
+              border: 1px solid #000;
+              background: #f5f5f5;
             }
-            .session-date {
+            .stat-box {
+              text-align: center;
+              flex: 1;
+            }
+            .stat-value {
+              font-size: 18pt;
               font-weight: bold;
-              color: #5865f2;
+              display: block;
+              margin-bottom: 5px;
             }
-            .session-hours {
-              font-size: 20px;
-              font-weight: bold;
-              color: #2c3e50;
-            }
-            .session-details {
-              line-height: 1.6;
+            .stat-label {
+              font-size: 10pt;
+              text-transform: uppercase;
+              color: #333;
             }
             table {
               width: 100%;
               border-collapse: collapse;
-              margin-top: 20px;
+              margin: 15px 0 25px 0;
+              font-size: 11pt;
             }
-            th, td {
-              padding: 12px;
-              text-align: left;
-              border-bottom: 1px solid #e3e5e8;
+            table, th, td {
+              border: 1px solid #000;
             }
             th {
-              background: #5865f2;
-              color: white;
+              background: #e8e8e8;
+              padding: 10px 8px;
+              text-align: left;
               font-weight: bold;
+              text-transform: uppercase;
+              font-size: 10pt;
+            }
+            td {
+              padding: 8px;
+            }
+            tr:nth-child(even) {
+              background: #fafafa;
+            }
+            .session-entry {
+              page-break-inside: avoid;
+              margin: 20px 0;
+              padding: 15px;
+              border: 1px solid #000;
+            }
+            .session-header-row {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 12px;
+              padding-bottom: 8px;
+              border-bottom: 1px solid #333;
+            }
+            .session-date {
+              font-weight: bold;
+              font-size: 12pt;
+            }
+            .session-hours {
+              font-weight: bold;
+              font-size: 12pt;
+            }
+            .session-detail-row {
+              margin: 10px 0;
+              font-size: 11pt;
+            }
+            .detail-label {
+              font-weight: bold;
+              display: inline-block;
+              min-width: 140px;
+            }
+            .detail-content {
+              display: block;
+              margin: 5px 0 5px 140px;
+              text-align: justify;
+              white-space: pre-wrap;
+            }
+            .signature-section {
+              margin-top: 50px;
+              page-break-inside: avoid;
+            }
+            .signature-line {
+              margin-top: 50px;
+              border-top: 2px solid #000;
+              width: 300px;
+              padding-top: 5px;
+              text-align: center;
+            }
+            .signature-label {
+              font-size: 10pt;
+              text-transform: uppercase;
             }
             .footer {
               margin-top: 40px;
+              padding-top: 15px;
+              border-top: 1px solid #000;
               text-align: center;
-              color: #95a5a6;
-              font-size: 12px;
-              border-top: 1px solid #e3e5e8;
-              padding-top: 20px;
+              font-size: 9pt;
+              color: #666;
+            }
+            .page-break {
+              page-break-after: always;
             }
           </style>
         </head>
         <body>
-          <div class="header">
-            <h1>📊 OJT Comprehensive Report</h1>
-            <p>${dateUtils.formatPH(new Date(), 'MMMM dd, yyyy')}</p>
+          <!-- Document Header -->
+          <div class="document-header">
+            <div class="document-title">On-The-Job Training Report</div>
+            <div class="document-subtitle">Work Activity Summary & Hours Documentation</div>
           </div>
 
-          <div class="summary">
-            <div class="stat">
-              <div class="stat-value">${sessions.length}</div>
-              <div class="stat-label">Total Sessions</div>
+          <!-- Report Information -->
+          <div class="report-info">
+            <div class="info-row">
+              <span class="info-label">Report Period:</span>
+              <span class="info-value">${dateUtils.formatPH(startDate, 'MMMM dd, yyyy')} - ${dateUtils.formatPH(endDate, 'MMMM dd, yyyy')}</span>
             </div>
-            <div class="stat">
-              <div class="stat-value">${totalHours.toFixed(1)}h</div>
-              <div class="stat-label">Total Hours</div>
+            <div class="info-row">
+              <span class="info-label">Report Generated:</span>
+              <span class="info-value">${dateUtils.formatPH(new Date(), 'MMMM dd, yyyy hh:mm a')}</span>
             </div>
-            <div class="stat">
-              <div class="stat-value">${(totalHours / sessions.length).toFixed(1)}h</div>
-              <div class="stat-label">Avg Hours/Day</div>
+            <div class="info-row">
+              <span class="info-label">Total Sessions:</span>
+              <span class="info-value">${sessions.length} Day${sessions.length !== 1 ? 's' : ''}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Total Hours Rendered:</span>
+              <span class="info-value">${totalHours.toFixed(2)} Hours</span>
             </div>
           </div>
 
-          <h2 style="color: #5865f2; margin-bottom: 20px;">📅 Session History</h2>
+          <!-- Summary Statistics -->
+          <div class="section-title">I. Summary of Hours</div>
+          <div class="summary-stats">
+            <div class="stat-box">
+              <span class="stat-value">${sessions.length}</span>
+              <span class="stat-label">Total Days</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-value">${totalHours.toFixed(1)}h</span>
+              <span class="stat-label">Total Hours</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-value">${(totalHours / sessions.length).toFixed(1)}h</span>
+              <span class="stat-label">Average per Day</span>
+            </div>
+          </div>
 
+          <!-- Sessions Table -->
+          <div class="section-title">II. Time Log Summary</div>
           <table>
             <thead>
               <tr>
-                <th>Date</th>
-                <th>Start Time</th>
-                <th>End Time</th>
-                <th>Hours</th>
+                <th style="width: 12%;">No.</th>
+                <th style="width: 28%;">Date</th>
+                <th style="width: 20%;">Time In</th>
+                <th style="width: 20%;">Time Out</th>
+                <th style="width: 20%;">Hours</th>
               </tr>
             </thead>
             <tbody>
-              ${sessions.map(session => `
+              ${sessions.map((session, index) => {
+                const formatTimeOnly = (timeStr: string | null) => {
+                  if (!timeStr) return '-'
+                  try {
+                    const [hours, minutes] = timeStr.split(':').map(Number)
+                    const period = hours >= 12 ? 'PM' : 'AM'
+                    const hour12 = hours % 12 || 12
+                    return `${hour12}:${String(minutes).padStart(2, '0')} ${period}`
+                  } catch {
+                    return timeStr
+                  }
+                }
+                return `
                 <tr>
-                  <td>${dateUtils.formatPH(session.date, 'MMM dd, yyyy')}</td>
-                  <td>${dateUtils.formatPH(session.start_time, 'hh:mm a')}</td>
-                  <td>${session.end_time ? dateUtils.formatPH(session.end_time, 'hh:mm a') : '-'}</td>
+                  <td style="text-align: center;">${index + 1}</td>
+                  <td>${dateUtils.formatPH(session.date, 'MMMM dd, yyyy')}</td>
+                  <td>${formatTimeOnly(session.start_time)}</td>
+                  <td>${formatTimeOnly(session.end_time)}</td>
                   <td><strong>${session.total_hours.toFixed(2)}h</strong></td>
                 </tr>
-              `).join('')}
+              `}).join('')}
+              <tr style="background: #e8e8e8; font-weight: bold;">
+                <td colspan="4" style="text-align: right; padding-right: 15px;">TOTAL HOURS:</td>
+                <td><strong>${totalHours.toFixed(2)}h</strong></td>
+              </tr>
             </tbody>
           </table>
 
-          <div style="page-break-before: always;"></div>
+          <div class="page-break"></div>
 
-          <h2 style="color: #5865f2; margin: 40px 0 20px;">📝 Detailed Logs</h2>
+          <!-- Detailed Activity Logs -->
+          <div class="section-title">III. Detailed Activity Logs</div>
 
-          ${sessions.map(session => `
-            <div class="session-card">
-              <div class="session-header">
-                <div class="session-date">
-                  ${dateUtils.formatPH(session.date, 'EEEE, MMMM dd, yyyy')}
-                </div>
-                <div class="session-hours">${session.total_hours.toFixed(2)}h</div>
+          ${sessions.map((session, index) => {
+            const formatTimeOnly = (timeStr: string | null) => {
+              if (!timeStr) return '-'
+              try {
+                const [hours, minutes] = timeStr.split(':').map(Number)
+                const period = hours >= 12 ? 'PM' : 'AM'
+                const hour12 = hours % 12 || 12
+                return `${hour12}:${String(minutes).padStart(2, '0')} ${period}`
+              } catch {
+                return timeStr
+              }
+            }
+            return `
+            <div class="session-entry">
+              <div class="session-header-row">
+                <span class="session-date">Day ${index + 1}: ${dateUtils.formatPH(session.date, 'EEEE, MMMM dd, yyyy')}</span>
+                <span class="session-hours">${session.total_hours.toFixed(2)} hours</span>
+              </div>
+              
+              <div class="session-detail-row">
+                <span class="detail-label">Time In:</span>
+                <span>${formatTimeOnly(session.start_time)}</span>
+              </div>
+              
+              <div class="session-detail-row">
+                <span class="detail-label">Time Out:</span>
+                <span>${formatTimeOnly(session.end_time) || 'Ongoing'}</span>
               </div>
               
               ${session.description ? `
-                <div class="session-details">
-                  <strong style="color: #5865f2;">Description:</strong>
-                  <p>${session.description}</p>
+                <div class="session-detail-row">
+                  <span class="detail-label">Work Description:</span>
+                  <div class="detail-content">${session.description}</div>
+                </div>
+              ` : ''}
+              
+              ${session.tasks_completed ? `
+                <div class="session-detail-row">
+                  <span class="detail-label">Tasks Completed:</span>
+                  <div class="detail-content">${session.tasks_completed}</div>
+                </div>
+              ` : ''}
+              
+              ${session.lessons_learned ? `
+                <div class="session-detail-row">
+                  <span class="detail-label">Lessons Learned:</span>
+                  <div class="detail-content">${session.lessons_learned}</div>
+                </div>
+              ` : ''}
+              
+              ${session.report_images && session.report_images.length > 0 ? `
+                <div class="session-detail-row">
+                  <span class="detail-label">Attachments:</span>
+                  <span>${session.report_images.length} supporting document${session.report_images.length > 1 ? 's' : ''}</span>
                 </div>
               ` : ''}
             </div>
-          `).join('')}
+          `}).join('')}
 
+          <!-- Signature Section -->
+          <div class="signature-section">
+            <p style="margin-bottom: 20px; font-size: 11pt;">
+              I hereby certify that the information provided in this report is true and accurate to the best of my knowledge.
+            </p>
+            
+            <div style="display: flex; justify-content: space-between; margin-top: 50px;">
+              <div style="flex: 1; text-align: center;">
+                <div class="signature-line">
+                  <div class="signature-label">Trainee Signature</div>
+                </div>
+              </div>
+              <div style="flex: 1; text-align: center;">
+                <div class="signature-line">
+                  <div class="signature-label">Supervisor Signature</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Footer -->
           <div class="footer">
-            <p><strong>OJT Tracker</strong> - Professional Time Tracking System</p>
-            <p>Generated on ${dateUtils.formatPH(new Date(), 'MMMM dd, yyyy hh:mm a')}</p>
-            <p>This document serves as official proof of completed OJT hours</p>
+            <p><strong>OJT TRACKER SYSTEM</strong></p>
+            <p>This is an official document generated by OJT Tracker - Professional Training Management System</p>
+            <p>Document ID: OJT-${dateUtils.formatPH(new Date(), 'yyyyMMdd-HHmmss')}</p>
           </div>
         </body>
       </html>

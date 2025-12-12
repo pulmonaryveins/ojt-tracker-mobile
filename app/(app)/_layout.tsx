@@ -71,6 +71,19 @@ export default function AppLayout() {
         }}
       />
       <Tabs.Screen
+        name="(reports)"
+        options={{
+          title: 'Reports',
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons 
+              name={focused ? 'document-text' : 'document-text-outline'} 
+              size={24} 
+              color={color} 
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="(profile)"
         options={{
           title: 'Profile',
