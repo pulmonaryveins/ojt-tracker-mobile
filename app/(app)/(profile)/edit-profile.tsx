@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
-import { View, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity, Image, Alert } from 'react-native'
+import { View, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity, Image, Alert, Text } from 'react-native'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { ThemedView } from '../../../components/themed/ThemedView'
 import { ThemedText } from '../../../components/themed/ThemedText'
 import { ThemedCard } from '../../../components/themed/ThemedCard'
@@ -10,6 +11,7 @@ import { Input } from '../../../components/ui/Input'
 import { Button } from '../../../components/ui/Button'
 import { Select } from '../../../components/ui/Select'
 import { Modal } from '../../../components/ui/Modal'
+import { ErrorBoundary } from '../../../components/ErrorBoundary'
 import { useAuthStore } from '../../../stores/auth.store'
 import { ProfileService } from '../../../services/profile.service'
 import { useTheme } from '../../../hooks/useTheme'
@@ -17,7 +19,31 @@ import type { Database } from '../../../types/supabase'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
 
-export default function EditProfileScreen() {
+// Debug function that works on Android
+const debugLog = async (message: string, data?: any) => {
+  const timestamp = new Date().toISOString()
+  const logMessage = `[${timestamp}] [EditProfile] ${message}`
+  
+  console.log(logMessage, data || '')
+  
+  try {
+    // Store debug logs for review
+    const existingLogs = await AsyncStorage.getItem('debug_logs') || '[]'
+    const logs = JSON.parse(existingLogs)
+    logs.push({ timestamp, component: 'EditProfile', message, data })
+    
+    // Keep only last 50 logs
+    if (logs.length > 50) {
+      logs.splice(0, logs.length - 50)
+    }
+    
+    await AsyncStorage.setItem('debug_logs', JSON.stringify(logs))
+  } catch (error) {
+    console.error('Failed to store debug log:', error)
+  }
+}
+
+function EditProfileContent() {
   const router = useRouter()
   const { colors } = useTheme()
   const user = useAuthStore((state) => state.user)
@@ -53,18 +79,28 @@ export default function EditProfileScreen() {
   const yearLevels = ['1st Year', '2nd Year', '3rd Year', '4th Year']
 
   useEffect(() => {
+    debugLog('Component mounted, starting to load profile', { userId: user?.id })
     loadProfile()
   }, [user?.id])
 
   const loadProfile = async () => {
     if (!user?.id) {
+      await debugLog('No user ID available, stopping profile load')
       setLoading(false)
       return
     }
 
     try {
       setLoading(true)
+      await debugLog('Starting profile load', { userId: user.id })
+      
+      // Add platform-specific safety check
+      if (Platform.OS === 'android') {
+        await debugLog('Running on Android platform')
+      }
+      
       const data = await ProfileService.getProfile(user.id)
+      await debugLog('Profile data loaded', { hasData: !!data, dataKeys: data ? Object.keys(data) : [] })
       
       if (data) {
         setProfile(data)
@@ -75,12 +111,22 @@ export default function EditProfileScreen() {
           workplace: data.workplace || '',
         })
         setProfilePicture(data.profile_picture_url)
+        await debugLog('Profile state updated successfully')
+      } else {
+        await debugLog('No profile data received from service')
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error loading profile:', error)
+      await debugLog('ERROR in loadProfile', { 
+        error: error.message, 
+        stack: error.stack,
+        name: error.name,
+        cause: error.cause 
+      })
       showModal('Error', 'Failed to load profile. Please try again.', 'error')
     } finally {
       setLoading(false)
+      await debugLog('Profile load complete')
     }
   }
 
@@ -336,11 +382,29 @@ export default function EditProfileScreen() {
   }
 
   if (loading || !user?.id) {
+    debugLog('Showing loading screen', { loading, hasUser: !!user?.id })
     return (
       <ThemedView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ThemedText>Loading profile...</ThemedText>
+        <ThemedText variant="secondary" style={{ marginTop: 8, fontSize: 12 }}>
+          Platform: {Platform.OS}
+        </ThemedText>
       </ThemedView>
     )
+  }
+
+  // Additional safety check for required dependencies
+  try {
+    if (!ThemedView || !ThemedText || !ThemedCard) {
+      debugLog('ERROR: Missing themed components')
+      return (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <Text>Error: Missing UI components</Text>
+        </View>
+      )
+    }
+  } catch (error) {
+    debugLog('ERROR: Component validation failed', error)
   }
 
   return (
@@ -672,5 +736,17 @@ export default function EditProfileScreen() {
         onClose={closeModal}
       />
     </ThemedView>
+  )
+}
+
+export default function EditProfileScreen() {
+  return (
+    <ErrorBoundary
+      onError={(error, errorInfo) => {
+        debugLog('ERROR: Screen crashed', { error: error.message, stack: error.stack })
+      }}
+    >
+      <EditProfileContent />
+    </ErrorBoundary>
   )
 }

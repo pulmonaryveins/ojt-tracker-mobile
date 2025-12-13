@@ -501,7 +501,15 @@ export default function ProfileScreen() {
 
           <ThemedCard style={{ marginBottom: 12 }}>
             <TouchableOpacity
-              onPress={() => router.push('/(app)/(profile)/edit-profile')}
+              onPress={() => {
+                try {
+                  console.log('🧪 Navigating to edit-profile')
+                  router.push('/(app)/(profile)/edit-profile')
+                } catch (error) {
+                  console.error('❌ Navigation error to edit-profile:', error)
+                  Alert.alert('Navigation Error', 'Failed to navigate to Edit Profile screen')
+                }
+              }}
               disabled={isDisabled}
               style={{
                 flexDirection: 'row',
@@ -536,7 +544,15 @@ export default function ProfileScreen() {
 
           <ThemedCard style={{ marginBottom: 12 }}>
             <TouchableOpacity
-              onPress={() => router.push('/(app)/(profile)/ojt-setup')}
+              onPress={() => {
+                try {
+                  console.log('🧪 Navigating to ojt-setup')
+                  router.push('/(app)/(profile)/ojt-setup')
+                } catch (error) {
+                  console.error('❌ Navigation error to ojt-setup:', error)
+                  Alert.alert('Navigation Error', 'Failed to navigate to OJT Setup screen')
+                }
+              }}
               disabled={isDisabled}
               style={{
                 flexDirection: 'row',

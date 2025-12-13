@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { View, ActivityIndicator, LogBox } from 'react-native'
 import { useAuthStore } from '../stores/auth.store'
 import { useOnboardingStore } from '../stores/onboarding.store'
+import { DebugUtils, setupGlobalErrorHandling } from '../utils/debug'
 import '../global.css'
 
 // Suppress known warnings in development
@@ -18,6 +19,9 @@ if (__DEV__) {
 
 const queryClient = new QueryClient()
 
+// Initialize debugging
+setupGlobalErrorHandling()
+
 function RootLayoutNav() {
   const router = useRouter()
   const segments = useSegments()
@@ -25,6 +29,11 @@ function RootLayoutNav() {
   const { user, initialized, loading } = useAuthStore() // ✅ Add loading state
   const { hasCompletedOnboarding } = useOnboardingStore()
   const [isNavigating, setIsNavigating] = useState(false)
+
+  // Log system info once
+  useEffect(() => {
+    DebugUtils.logSystemInfo()
+  }, [])
 
   useEffect(() => {
     if (!initialized || !navigationState?.key || isNavigating) return

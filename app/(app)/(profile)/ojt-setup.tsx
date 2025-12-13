@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { View, KeyboardAvoidingView, Platform, ScrollView } from 'react-native'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { ThemedView } from '../../../components/themed/ThemedView'
 import { ThemedText } from '../../../components/themed/ThemedText'
 import { ThemedCard } from '../../../components/themed/ThemedCard'
@@ -9,6 +10,7 @@ import { Input } from '../../../components/ui/Input'
 import { Button } from '../../../components/ui/Button'
 import { DateTimePicker } from '../../../components/ui/DateTimePicker'
 import { Modal } from '../../../components/ui/Modal'
+import { ErrorBoundary } from '../../../components/ErrorBoundary'
 import { useAuthStore } from '../../../stores/auth.store'
 import { OJTSetupService } from '../../../services/ojt-setup.service'
 import { useTheme } from '../../../hooks/useTheme'
@@ -19,7 +21,29 @@ interface OJTSetupForm {
   end_date: string | null
 }
 
-export default function OJTSetupScreen() {
+// Debug function that works on Android
+const debugLog = async (message: string, data?: any) => {
+  const timestamp = new Date().toISOString()
+  const logMessage = `[${timestamp}] [OJTSetup] ${message}`
+  
+  console.log(logMessage, data || '')
+  
+  try {
+    const existingLogs = await AsyncStorage.getItem('debug_logs') || '[]'
+    const logs = JSON.parse(existingLogs)
+    logs.push({ timestamp, component: 'OJTSetup', message, data })
+    
+    if (logs.length > 50) {
+      logs.splice(0, logs.length - 50)
+    }
+    
+    await AsyncStorage.setItem('debug_logs', JSON.stringify(logs))
+  } catch (error) {
+    console.error('Failed to store debug log:', error)
+  }
+}
+
+function OJTSetupContent() {
   const router = useRouter()
   const { colors } = useTheme()
   const user = useAuthStore((state) => state.user)
@@ -48,18 +72,23 @@ export default function OJTSetupScreen() {
   })
 
   useEffect(() => {
+    debugLog('Component mounted, starting to load OJT setup', { userId: user?.id })
     loadSetup()
   }, [user?.id])
 
   const loadSetup = async () => {
     if (!user?.id) {
+      await debugLog('No user ID available, stopping setup load')
       setLoading(false)
       return
     }
 
     try {
       setLoading(true)
+      await debugLog('Starting OJT setup load', { userId: user.id })
+      
       const data = await OJTSetupService.getSetup(user.id)
+      await debugLog('OJT setup data loaded', { hasData: !!data })
       
       if (data) {
         setFormData({
@@ -67,14 +96,16 @@ export default function OJTSetupScreen() {
           start_date: data.start_date,
           end_date: data.end_date,
         })
-        console.log('✅ OJT setup loaded:', data)
+        await debugLog('OJT setup state updated successfully', data)
       } else {
-        console.log('ℹ️ No existing OJT setup found')
+        await debugLog('No existing OJT setup found')
       }
     } catch (error) {
       console.error('❌ Error loading OJT setup:', error)
+      await debugLog('ERROR in loadSetup', { error: error.message, stack: error.stack })
     } finally {
       setLoading(false)
+      await debugLog('OJT setup load complete')
     }
   }
 
@@ -215,6 +246,7 @@ export default function OJTSetupScreen() {
   }
 
   if (loading || !user?.id) {
+    debugLog('Showing loading screen', { loading, hasUser: !!user?.id })
     return (
       <ThemedView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ThemedText>Loading setup...</ThemedText>
@@ -423,5 +455,17 @@ export default function OJTSetupScreen() {
         onClose={closeModal}
       />
     </ThemedView>
+  )
+}
+
+export default function OJTSetupScreen() {
+  return (
+    <ErrorBoundary
+      onError={(error, errorInfo) => {
+        debugLog('ERROR: Screen crashed', { error: error.message, stack: error.stack })
+      }}
+    >
+      <OJTSetupContent />
+    </ErrorBoundary>
   )
 }
