@@ -16,7 +16,7 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.yourcompany.ojttracker"
+      "bundleIdentifier": "com.projectpransin.ojttracker"
     },
     "android": {
       "adaptiveIcon": {
@@ -24,12 +24,13 @@
         "backgroundColor": "#5865f2"
       },
       "permissions": [
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE",
-        "NOTIFICATIONS"
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.NOTIFICATIONS",
+        "android.permission.RECORD_AUDIO"
       ],
-      "package": "com.yourcompany.ojttracker"
+      "package": "com.projectpransin.ojttracker"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -39,7 +40,6 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/notification-icon.png",
           "color": "#5865f2"
         }
       ],
@@ -49,15 +49,18 @@
           "photosPermission": "Allow OJT Tracker to access your photos to upload session images.",
           "cameraPermission": "Allow OJT Tracker to access your camera to take session photos."
         }
-      ]
+      ],
+      "expo-font",
+      "expo-secure-store"
     ],
     "extra": {
       "router": {
         "origin": false
       },
       "eas": {
-        "projectId": "your-project-id"
+        "projectId": "42fd5633-da13-41a8-9931-c42511c9bbe4"
       }
-    }
+    },
+    "owner": "pulmonaryveins"
   }
 }
