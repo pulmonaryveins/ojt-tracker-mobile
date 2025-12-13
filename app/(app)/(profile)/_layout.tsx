@@ -11,6 +11,7 @@ export default function ProfileLayout() {
       <Stack.Screen name="edit-profile" />
       <Stack.Screen name="ojt-setup" />
       <Stack.Screen name="settings" />
+      <Stack.Screen name="help" />
     </Stack>
   )
 }

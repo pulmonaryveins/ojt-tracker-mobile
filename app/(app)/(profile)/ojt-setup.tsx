@@ -214,6 +214,14 @@ export default function OJTSetupScreen() {
     })
   }
 
+  if (loading || !user?.id) {
+    return (
+      <ThemedView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ThemedText>Loading setup...</ThemedText>
+      </ThemedView>
+    )
+  }
+
   return (
     <ThemedView style={{ flex: 1 }}>
       <KeyboardAvoidingView

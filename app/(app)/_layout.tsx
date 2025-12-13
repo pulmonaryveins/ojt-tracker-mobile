@@ -31,6 +31,14 @@ export default function AppLayout() {
         },
       }}
     >
+      {/* Hide the index route from the tab bar */}
+      <Tabs.Screen
+        name="index"
+        options={{
+          href: null, // This hides it from the tab bar
+        }}
+      />
+      
       <Tabs.Screen
         name="(dashboard)"
         options={{

@@ -93,7 +93,8 @@ export default function EditProfileScreen() {
     
     if (modal.type === 'success') {
       setTimeout(() => {
-        router.back()
+        // Use replace instead of back to ensure navigation works
+        router.replace('/(app)/(profile)')
       }, 300)
     }
   }
@@ -334,7 +335,7 @@ export default function EditProfileScreen() {
     }
   }
 
-  if (loading) {
+  if (loading || !user?.id) {
     return (
       <ThemedView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ThemedText>Loading profile...</ThemedText>
@@ -651,7 +652,7 @@ export default function EditProfileScreen() {
 
             <Button 
               variant="outline"
-              onPress={() => router.back()}
+              onPress={() => router.replace('/(app)/(profile)')}
               disabled={saving}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
