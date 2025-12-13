@@ -387,7 +387,7 @@ function EditProfileContent() {
       <ThemedView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ThemedText>Loading profile...</ThemedText>
         <ThemedText variant="secondary" style={{ marginTop: 8, fontSize: 12 }}>
-          Platform: {Platform.OS}
+          Platform: {String(Platform.OS)}
         </ThemedText>
       </ThemedView>
     )

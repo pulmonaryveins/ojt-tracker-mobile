@@ -43,7 +43,7 @@ export function Input({ label, error, style, ...props }: InputProps) {
         {...props}
       />
       
-      {error && (
+      {error && typeof error === 'string' && (
         <ThemedText
           style={{
             color: colors.error,
