@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { View, ScrollView, RefreshControl, Dimensions, Image } from 'react-native'
-import { useFocusEffect } from 'expo-router'
+import { View, ScrollView, RefreshControl, Dimensions, Image, TouchableOpacity } from 'react-native'
+import { useFocusEffect, useRouter } from 'expo-router'
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
 import { ThemedView } from '../../../components/themed/ThemedView'
 import { ThemedText } from '../../../components/themed/ThemedText'
@@ -20,6 +20,7 @@ const { width } = Dimensions.get('window')
 export default function DashboardScreen() {
   const { colors } = useTheme()
   const user = useAuthStore((state) => state.user)
+  const router = useRouter()
   
   const [profile, setProfile] = useState<Profile | null>(null)
   const [ojtSetup, setOjtSetup] = useState<OJTSetup | null>(null)
@@ -438,43 +439,55 @@ export default function DashboardScreen() {
           </ThemedText>
 
           <View style={{ flexDirection: 'row', gap: 12 }}>
-            <ThemedCard style={{ flex: 1, padding: 20, alignItems: 'center' }}>
-              <View
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 24,
-                  backgroundColor: colors.accent + '20',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  marginBottom: 12,
-                }}
-              >
-                <Ionicons name="timer" size={24} color={colors.accent} />
-              </View>
-              <ThemedText weight="semibold" style={{ fontSize: 13, textAlign: 'center' }}>
-                Start Timer
-              </ThemedText>
-            </ThemedCard>
+            <TouchableOpacity
+              onPress={() => router.push('/modals/manual-entry')}
+              style={{ flex: 1 }}
+              activeOpacity={0.7}
+            >
+              <ThemedCard style={{ padding: 20, alignItems: 'center' }}>
+                <View
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 24,
+                    backgroundColor: colors.accent + '20',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    marginBottom: 12,
+                  }}
+                >
+                  <Ionicons name="create-outline" size={24} color={colors.accent} />
+                </View>
+                <ThemedText weight="semibold" style={{ fontSize: 13, textAlign: 'center' }}>
+                  Manual Entry
+                </ThemedText>
+              </ThemedCard>
+            </TouchableOpacity>
 
-            <ThemedCard style={{ flex: 1, padding: 20, alignItems: 'center' }}>
-              <View
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 24,
-                  backgroundColor: colors.accent + '20',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  marginBottom: 12,
-                }}
-              >
-                <MaterialCommunityIcons name="notebook-outline" size={24} color={colors.accent} />
-              </View>
-              <ThemedText weight="semibold" style={{ fontSize: 13, textAlign: 'center' }}>
-                View Logs
-              </ThemedText>
-            </ThemedCard>
+            <TouchableOpacity
+              onPress={() => router.push('/(app)/(logs)')}
+              style={{ flex: 1 }}
+              activeOpacity={0.7}
+            >
+              <ThemedCard style={{ padding: 20, alignItems: 'center' }}>
+                <View
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 24,
+                    backgroundColor: colors.accent + '20',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    marginBottom: 12,
+                  }}
+                >
+                  <MaterialCommunityIcons name="notebook-outline" size={24} color={colors.accent} />
+                </View>
+                <ThemedText weight="semibold" style={{ fontSize: 13, textAlign: 'center' }}>
+                  Activity Logs
+                </ThemedText>
+              </ThemedCard>
+            </TouchableOpacity>
           </View>
         </View>
 

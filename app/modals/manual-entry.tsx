@@ -12,7 +12,7 @@ import { useAuthStore } from '../../stores/auth.store'
 import { SessionService } from '../../services/session.service'
 import { useTheme } from '../../hooks/useTheme'
 
-interface ManualBreak {
+interface LocalBreakItem {
   id: string
   startTime: string
   endTime: string
@@ -27,10 +27,17 @@ export default function ManualEntryModal() {
   const [date, setDate] = useState(new Date().toISOString())
   const [timeIn, setTimeIn] = useState('')
   const [timeOut, setTimeOut] = useState('')
-  const [breaks, setBreaks] = useState<ManualBreak[]>([])
+  const [breaks, setBreaks] = useState<LocalBreakItem[]>([{ id: 'break_1', startTime: '', endTime: '' }])
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<{ [key: string]: string }>({})
   const [showConfirmModal, setShowConfirmModal] = useState(false)
+  const [modal, setModal] = useState<{
+    visible: boolean
+    title: string
+    message: string
+    type: 'success' | 'error' | 'warning' | 'info'
+    actions?: Array<{ text: string; onPress: () => void; variant?: 'primary' | 'outline' }>
+  }>({ visible: false, title: '', message: '', type: 'info' })
 
   const format12Hour = (date: Date): string => {
     return date.toLocaleTimeString('en-US', {
@@ -185,12 +192,24 @@ export default function ManualEntryModal() {
 
   const handleSave = () => {
     if (!validateManualEntry()) {
-      Alert.alert('Validation Error', 'Please fix the errors before saving')
+      setModal({
+        visible: true,
+        title: 'Validation Error',
+        message: 'Please fix the errors before saving',
+        type: 'error',
+        actions: [{ text: 'OK', onPress: () => setModal(prev => ({ ...prev, visible: false })) }]
+      })
       return
     }
 
     if (!user?.id) {
-      Alert.alert('Error', 'User not found. Please log in again.')
+      setModal({
+        visible: true,
+        title: 'Error',
+        message: 'User not found. Please log in again.',
+        type: 'error',
+        actions: [{ text: 'OK', onPress: () => setModal(prev => ({ ...prev, visible: false })) }]
+      })
       return
     }
 
@@ -201,7 +220,13 @@ export default function ManualEntryModal() {
     setShowConfirmModal(false)
     
     if (!user?.id) {
-      Alert.alert('Error', 'User not found. Please log in again.')
+      setModal({
+        visible: true,
+        title: 'Error',
+        message: 'User not found. Please log in again.',
+        type: 'error',
+        actions: [{ text: 'OK', onPress: () => setModal(prev => ({ ...prev, visible: false })) }]
+      })
       return
     }
 
@@ -222,9 +247,8 @@ export default function ManualEntryModal() {
       )
 
       // Calculate total break time
-      // Note: breaks are only used for calculation, not stored in database
       let totalBreakSeconds = 0
-      const breakRecords: Array<{ start: string; end: string | null }> = []
+      const breakRecords: Array<{ start_time: string; end_time: string }> = []
 
       breaks.forEach(breakItem => {
         if (breakItem.startTime && breakItem.endTime) {
@@ -235,8 +259,8 @@ export default function ManualEntryModal() {
           )
           totalBreakSeconds += breakDurationSeconds
           breakRecords.push({
-            start: formatTime24(breakItem.startTime),
-            end: formatTime24(breakItem.endTime),
+            start_time: formatTime24(breakItem.startTime),
+            end_time: formatTime24(breakItem.endTime),
           })
         }
       })
@@ -269,24 +293,34 @@ export default function ManualEntryModal() {
       // Close the modal and redirect to Activity Logs
       setLoading(false)
       
-      Alert.alert(
-        'Success! 🎉',
-        `Manual time entry saved successfully.\n\nDate: ${sessionDate}\nHours: ${totalHours.toFixed(2)}`,
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              router.dismiss()
+      // Show success modal instead of Alert
+      setModal({
+        visible: true,
+        title: 'Success! 🎉',
+        message: `Manual time entry saved successfully.\n\nDate: ${new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}\nHours: ${totalHours.toFixed(2)}`,
+        type: 'success',
+        actions: [{
+          text: 'View in Activity Logs',
+          onPress: () => {
+            setModal(prev => ({ ...prev, visible: false }))
+            router.dismiss()
+            setTimeout(() => {
               router.push('/(app)/(logs)')
-            },
+            }, 100)
           },
-        ],
-        { cancelable: false }
-      )
+          variant: 'primary'
+        }]
+      })
       return
     } catch (error: any) {
       console.error('❌ Error creating manual entry:', error)
-      Alert.alert('Error', error.message || 'Failed to save manual entry')
+      setModal({
+        visible: true,
+        title: 'Error',
+        message: error.message || 'Failed to save manual entry',
+        type: 'error',
+        actions: [{ text: 'OK', onPress: () => setModal(prev => ({ ...prev, visible: false })) }]
+      })
       setLoading(false)
     }
   }
@@ -578,6 +612,15 @@ export default function ManualEntryModal() {
             variant: 'primary',
           },
         ]}
+      />
+
+      <Modal
+        visible={modal.visible}
+        onClose={() => setModal(prev => ({ ...prev, visible: false }))}
+        title={modal.title}
+        type={modal.type}
+        message={modal.message}
+        actions={modal.actions || [{ text: 'OK', onPress: () => setModal(prev => ({ ...prev, visible: false })) }]}
       />
     </ThemedView>
   )

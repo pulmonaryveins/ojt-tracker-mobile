@@ -28,8 +28,13 @@ export interface OJTConfig {
 }
 
 export interface Break {
-  start: string
-  end: string | null
+  id: string
+  session_id: string
+  start_time: string
+  end_time: string | null
+  duration: number
+  created_at: string
+  updated_at: string
 }
 
 export interface Session {

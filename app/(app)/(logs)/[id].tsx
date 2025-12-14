@@ -31,6 +31,12 @@ export default function SessionDetailScreen() {
   const [showExportConfirmModal, setShowExportConfirmModal] = useState(false)
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [showImageViewer, setShowImageViewer] = useState(false)
+  const [modal, setModal] = useState<{
+    visible: boolean
+    title: string
+    message: string
+    type: 'success' | 'error' | 'warning' | 'info'
+  }>({ visible: false, title: '', message: '', type: 'info' })
   
   // Edit form state
   const [editStartTime, setEditStartTime] = useState('')
@@ -63,8 +69,8 @@ export default function SessionDetailScreen() {
     if (session && isEditing) {
       setEditStartTime(session.start_time)
       setEditEndTime(session.end_time || '')
-      // Breaks are not stored in database, start with empty array
-      setEditBreaks([])
+      // Load actual breaks from session data
+      setEditBreaks((session.breaks as Break[]) || [])
     }
   }, [isEditing, session])
 
@@ -81,12 +87,11 @@ export default function SessionDetailScreen() {
 
     setLoading(true)
     try {
-      const data = await SessionService.getSessionById(id) as any
+      const data = await SessionService.getSessionByIdWithBreaks(id) as any
       // Transform database row to Session model
-      // Note: breaks are not stored in database, set to null
       const sessionData: Session = {
         ...data,
-        breaks: null,
+        breaks: data.breaks || [],
         tasks_completed: data.tasks_completed || null,
         lessons_learned: data.lessons_learned || null,
         report_images: data.report_images || null,
@@ -120,9 +125,9 @@ export default function SessionDetailScreen() {
         // Calculate break duration
         let breakDuration = 0
         editBreaks.forEach(br => {
-          if (br.end) {
-            const breakStart = new Date(`2000-01-01T${br.start}`)
-            const breakEnd = new Date(`2000-01-01T${br.end}`)
+          if (br.end_time) {
+            const breakStart = new Date(`2000-01-01T${br.start_time}`)
+            const breakEnd = new Date(`2000-01-01T${br.end_time}`)
             breakDuration += (breakEnd.getTime() - breakStart.getTime()) / (1000 * 60)
           }
         })
@@ -138,25 +143,34 @@ export default function SessionDetailScreen() {
         total_hours: totalHours,
       })
 
-      Alert.alert('Success', 'Session updated successfully')
+      setModal({ visible: true, title: 'Success', message: 'Session updated successfully', type: 'success' })
       setIsEditing(false)
       loadSession()
     } catch (error: any) {
-      Alert.alert('Error', 'Failed to update session: ' + error.message)
+      setModal({ visible: true, title: 'Error', message: 'Failed to update session: ' + error.message, type: 'error' })
     } finally {
       setSaving(false)
     }
   }
 
   const handleAddBreak = () => {
-    setEditBreaks([...editBreaks, { start: '12:00', end: '12:30' }])
+    const newBreak: Break = {
+      id: `temp_${Date.now()}`,
+      session_id: session?.id || '',
+      start_time: '12:00',
+      end_time: '12:30',
+      duration: 30,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }
+    setEditBreaks([...editBreaks, newBreak])
   }
 
   const handleRemoveBreak = (index: number) => {
     setEditBreaks(editBreaks.filter((_, i) => i !== index))
   }
 
-  const handleUpdateBreak = (index: number, field: 'start' | 'end', value: string) => {
+  const handleUpdateBreak = (index: number, field: 'start_time' | 'end_time', value: string) => {
     const updated = [...editBreaks]
     updated[index] = { ...updated[index], [field]: value }
     setEditBreaks(updated)
@@ -398,8 +412,8 @@ export default function SessionDetailScreen() {
                     <View className="flex-1">
                       <ThemedText variant="secondary" className="text-xs mb-1">Start</ThemedText>
                       <TextInput
-                        value={breakItem.start}
-                        onChangeText={(value) => handleUpdateBreak(index, 'start', value)}
+                        value={breakItem.start_time}
+                        onChangeText={(value) => handleUpdateBreak(index, 'start_time', value)}
                         placeholder="HH:MM"
                         placeholderTextColor={colors.textSecondary}
                         style={{
@@ -414,8 +428,8 @@ export default function SessionDetailScreen() {
                     <View className="flex-1">
                       <ThemedText variant="secondary" className="text-xs mb-1">End</ThemedText>
                       <TextInput
-                        value={breakItem.end || ''}
-                        onChangeText={(value) => handleUpdateBreak(index, 'end', value)}
+                        value={breakItem.end_time || ''}
+                        onChangeText={(value) => handleUpdateBreak(index, 'end_time', value)}
                         placeholder="HH:MM"
                         placeholderTextColor={colors.textSecondary}
                         style={{
@@ -478,7 +492,51 @@ export default function SessionDetailScreen() {
               </View>
             </ThemedCard>
 
-            {/* Breaks Display - Hidden since breaks are not stored in database */}
+            {/* Breaks Display */}
+            {session.breaks && session.breaks.length > 0 && (
+              <ThemedCard className="mb-4">
+                <View className="flex-row items-center mb-4">
+                  <Ionicons name="pause-circle-outline" size={20} color={colors.accent} style={{ marginRight: 8 }} />
+                  <ThemedText variant="secondary" className="text-sm">
+                    Breaks ({session.breaks.length})
+                  </ThemedText>
+                </View>
+                
+                <View style={{ gap: 8 }}>
+                  {session.breaks.map((breakItem, index) => (
+                    <View key={index} style={{
+                      backgroundColor: colors.secondary,
+                      padding: 12,
+                      borderRadius: 8,
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}>
+                      <View>
+                        <ThemedText weight="medium" style={{ fontSize: 14, marginBottom: 2 }}>
+                          Break {index + 1}
+                        </ThemedText>
+                        <ThemedText variant="secondary" style={{ fontSize: 12 }}>
+                          {formatTime12Hour(breakItem.start_time)} - {breakItem.end_time ? formatTime12Hour(breakItem.end_time) : 'Ongoing'}
+                        </ThemedText>
+                      </View>
+                      {breakItem.duration > 0 && (
+                        <View style={{
+                          backgroundColor: colors.accent + '20',
+                          paddingHorizontal: 8,
+                          paddingVertical: 4,
+                          borderRadius: 6
+                        }}>
+                          <ThemedText style={{ fontSize: 12, color: colors.accent, fontWeight: '600' }}>
+                            {Math.round(breakItem.duration)}min
+                          </ThemedText>
+                        </View>
+                      )}
+                    </View>
+                  ))}
+                </View>
+              </ThemedCard>
+            )}
 
             {/* Session Report */}
             <ThemedCard className="mb-4">

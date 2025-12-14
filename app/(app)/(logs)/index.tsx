@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { View, ScrollView, RefreshControl, TouchableOpacity, TextInput, Alert } from 'react-native'
+import { View, ScrollView, RefreshControl, TouchableOpacity, TextInput } from 'react-native'
 import { useFocusEffect, useRouter } from 'expo-router'
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
 import { ThemedView } from '../../../components/themed/ThemedView'
@@ -13,9 +13,9 @@ import { PDFExportService } from '../../../services/pdf-export.service'
 import { useTheme } from '../../../hooks/useTheme'
 import { supabase } from '../../../lib/supabase'
 import type { Database } from '../../../types/supabase'
-import type { Session as SessionModel } from '../../../types/models'
+import type { Session as SessionModel, Break } from '../../../types/models'
 
-type Session = Database['public']['Tables']['sessions']['Row']
+type Session = Database['public']['Tables']['sessions']['Row'] & { breaks?: Break[] }
 
 export default function LogsScreen() {
   const router = useRouter()
@@ -32,6 +32,16 @@ export default function LogsScreen() {
   const [selectedMonth, setSelectedMonth] = useState<string>('all')
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10
+  const [modal, setModal] = useState<{
+    visible: boolean
+    title: string
+    message: string
+    type: 'success' | 'error' | 'warning' | 'info'
+  }>({ visible: false, title: '', message: '', type: 'info' })
+
+  const closeModal = () => {
+    setModal({ visible: false, title: '', message: '', type: 'info' })
+  }
 
   useFocusEffect(
     useCallback(() => {
@@ -131,7 +141,7 @@ export default function LogsScreen() {
 
   const handleExportAll = async () => {
     if (filteredSessions.length === 0) {
-      Alert.alert('No Sessions', 'There are no sessions to export')
+      setModal({ visible: true, title: 'No Sessions', message: 'There are no sessions to export', type: 'warning' })
       return
     }
 
@@ -140,17 +150,17 @@ export default function LogsScreen() {
       // Transform filtered sessions to include breaks
       const sessionsToExport: SessionModel[] = filteredSessions.map(s => ({
         ...s,
-        breaks: ((s as any).breaks as any) || null,
+        breaks: s.breaks || null,
         tasks_completed: s.tasks_completed || null,
         lessons_learned: s.lessons_learned || null,
         report_images: s.report_images || null,
       }))
       
       await PDFExportService.exportMultipleSessions(sessionsToExport)
-      Alert.alert('Success', `Exported ${filteredSessions.length} session${filteredSessions.length > 1 ? 's' : ''} to PDF`)
+      setModal({ visible: true, title: 'Success', message: `Exported ${filteredSessions.length} session${filteredSessions.length > 1 ? 's' : ''} to PDF`, type: 'success' })
     } catch (error: any) {
       console.error('PDF Export Error:', error)
-      Alert.alert('Error', 'Failed to export sessions: ' + error.message)
+      setModal({ visible: true, title: 'Error', message: 'Failed to export sessions: ' + error.message, type: 'error' })
     } finally {
       setExportingAll(false)
     }
@@ -482,7 +492,113 @@ export default function LogsScreen() {
                         </View>
                       </View>
 
-                      {/* Breaks not displayed - not stored in database */}
+                      {/* Breaks Display */}
+                      {session.breaks && session.breaks.length > 0 && (
+                        <View
+                          style={{
+                            paddingTop: 12,
+                            borderTopWidth: 1,
+                            borderTopColor: colors.border,
+                            marginBottom: 12,
+                          }}
+                        >
+                          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                            <Ionicons name="pause-circle-outline" size={16} color={colors.textSecondary} style={{ marginRight: 6 }} />
+                            <ThemedText variant="secondary" style={{ fontSize: 12, fontWeight: '600' }}>
+                              Breaks ({session.breaks.length})
+                            </ThemedText>
+                          </View>
+                          {session.breaks.map((breakItem, index) => {
+                            const formatTime = (timeStr: string) => {
+                              const date = new Date(`2000-01-01T${timeStr}`)
+                              return date.toLocaleTimeString('en-US', {
+                                hour: 'numeric',
+                                minute: '2-digit',
+                                hour12: true
+                              })
+                            }
+                            
+                            return (
+                              <View key={index} style={{
+                                flexDirection: 'row',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                paddingVertical: 4,
+                                paddingHorizontal: 8,
+                                backgroundColor: colors.secondary,
+                                borderRadius: 6,
+                                marginBottom: 4
+                              }}>
+                                <ThemedText style={{ fontSize: 11, color: colors.textSecondary }}>
+                                  Break {index + 1}
+                                </ThemedText>
+                                <ThemedText style={{ fontSize: 11 }}>
+                                  {formatTime(breakItem.start_time)} - {breakItem.end_time ? formatTime(breakItem.end_time) : 'Ongoing'}
+                                </ThemedText>
+                                {breakItem.duration > 0 && (
+                                  <ThemedText style={{ fontSize: 11, color: colors.accent, fontWeight: '600' }}>
+                                    {Math.round(breakItem.duration)}min
+                                  </ThemedText>
+                                )}
+                              </View>
+                            )
+                          })}
+                        </View>
+                      )}
+
+                      {/* Breaks Display */}
+                      {session.breaks && session.breaks.length > 0 && (
+                        <View
+                          style={{
+                            paddingTop: 12,
+                            borderTopWidth: 1,
+                            borderTopColor: colors.border,
+                            marginBottom: 12,
+                          }}
+                        >
+                          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                            <Ionicons name="pause-circle-outline" size={16} color={colors.textSecondary} style={{ marginRight: 6 }} />
+                            <ThemedText variant="secondary" style={{ fontSize: 12, fontWeight: '600' }}>
+                              Breaks ({session.breaks.length})
+                            </ThemedText>
+                          </View>
+                          {session.breaks.map((breakItem, index) => {
+                            const formatTime = (timeStr: string) => {
+                              const date = new Date(`2000-01-01T${timeStr}`)
+                              return date.toLocaleTimeString('en-US', {
+                                hour: 'numeric',
+                                minute: '2-digit',
+                                hour12: true
+                              })
+                            }
+                            
+                            return (
+                              <View key={index} style={{
+                                flexDirection: 'row',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                paddingVertical: 4,
+                                paddingHorizontal: 8,
+                                backgroundColor: colors.secondary,
+                                borderRadius: 6,
+                                marginBottom: 4
+                              }}>
+                                <ThemedText style={{ fontSize: 11, color: colors.textSecondary }}>
+                                  Break {index + 1}
+                                </ThemedText>
+                                <ThemedText style={{ fontSize: 11 }}>
+                                  {formatTime(breakItem.start_time)} - {breakItem.end_time ? formatTime(breakItem.end_time) : 'Ongoing'}
+                                </ThemedText>
+                                {breakItem.duration > 0 && (
+                                  <ThemedText style={{ fontSize: 11, color: colors.accent, fontWeight: '600' }}>
+                                    {Math.round(breakItem.duration)}min
+                                  </ThemedText>
+                                )}
+                              </View>
+                            )
+                          })}
+                        </View>
+                      )}
 
                       {session.description && (
                         <View
@@ -616,6 +732,15 @@ export default function LogsScreen() {
           </>
         )}
       </ScrollView>
+
+      {/* Error/Success Modal */}
+      <Modal
+        visible={modal.visible}
+        title={modal.title}
+        message={modal.message}
+        type={modal.type}
+        onClose={closeModal}
+      />
     </ThemedView>
   )
 

@@ -102,6 +102,27 @@ export interface Database {
           report_images?: string[] | null
         }
       }
+      breaks: {
+        Row: {
+          id: string
+          session_id: string
+          start_time: string
+          end_time: string | null
+          duration: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          session_id: string
+          start_time: string
+          end_time?: string | null
+          duration?: number
+        }
+        Update: {
+          end_time?: string | null
+          duration?: number
+        }
+      }
     }
     Views: {
       user_statistics: {

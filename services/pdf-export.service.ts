@@ -341,8 +341,8 @@ export class PDFExportService {
                 ${session.breaks!.map((brk, index) => `
                   <tr>
                     <td>Break ${index + 1}</td>
-                    <td>${this.formatTimeOnly(brk.start)}</td>
-                    <td>${brk.end ? this.formatTimeOnly(brk.end) : 'Ongoing'}</td>
+                    <td>${this.formatTimeOnly(brk.start_time)}</td>
+                    <td>${brk.end_time ? this.formatTimeOnly(brk.end_time) : 'Ongoing'}</td>
                   </tr>
                 `).join('')}
               </tbody>

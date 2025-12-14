@@ -478,6 +478,36 @@ export class SessionService {
   }
 
   /**
+   * Get all sessions for user with breaks included
+   */
+  static async getSessionsWithBreaks(
+    userId: string,
+    limit?: number,
+    offset?: number
+  ): Promise<(Session & { breaks: Break[] })[]> {
+    try {
+      // First get sessions
+      const sessions = await this.getSessions(userId, limit, offset)
+      
+      // Then get breaks for each session
+      const sessionsWithBreaks = await Promise.all(
+        sessions.map(async (session) => {
+          const breaks = await this.getSessionBreaks(session.id)
+          return {
+            ...session,
+            breaks: breaks || []
+          }
+        })
+      )
+
+      return sessionsWithBreaks
+    } catch (error) {
+      console.error('Error in getSessionsWithBreaks:', error)
+      throw error
+    }
+  }
+
+  /**
    * Get a single session by ID
    */
   static async getSessionById(sessionId: string): Promise<Session> {
@@ -494,6 +524,27 @@ export class SessionService {
       return data
     } catch (error) {
       console.error('Error fetching session:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Get a single session by ID with breaks included
+   */
+  static async getSessionByIdWithBreaks(sessionId: string): Promise<Session & { breaks: Break[] }> {
+    try {
+      // Get the session
+      const session = await this.getSessionById(sessionId)
+      
+      // Get breaks for the session
+      const breaks = await this.getSessionBreaks(sessionId)
+      
+      return {
+        ...session,
+        breaks: breaks || []
+      }
+    } catch (error) {
+      console.error('Error fetching session with breaks:', error)
       throw error
     }
   }
@@ -578,7 +629,7 @@ export class SessionService {
     timeOut: string,
     totalHours: number,
     notes: string | null,
-    breaks: Array<{ start: string; end: string | null }> | null
+    breaks: Array<{ start_time: string; end_time: string | null }> | null
   ): Promise<string> {
     try {
       console.log('📝 Creating manual session entry...')
@@ -587,7 +638,6 @@ export class SessionService {
       const duration = Math.floor((new Date(`${date}T${timeOut}`).getTime() - new Date(`${date}T${timeIn}`).getTime()) / (1000 * 60))
 
       // Create the session with status completed
-      // Note: breaks are not stored in database, only used for calculation
       const { data: session, error: sessionError } = await supabase
         .from('sessions')
         .insert({
@@ -605,6 +655,35 @@ export class SessionService {
       if (sessionError) {
         console.error('Error creating manual session:', sessionError)
         throw sessionError
+      }
+
+      // Save break periods to database
+      if (breaks && breaks.length > 0) {
+        console.log('💾 Saving break periods for session:', session.id)
+        const breakRecords = breaks.map(breakItem => {
+          // Calculate break duration in minutes
+          const breakDuration = breakItem.end_time ? 
+            Math.floor((new Date(`${date}T${breakItem.end_time}`).getTime() - new Date(`${date}T${breakItem.start_time}`).getTime()) / (1000 * 60)) : 
+            0
+
+          return {
+            session_id: session.id,
+            start_time: breakItem.start_time,
+            end_time: breakItem.end_time,
+            duration: breakDuration
+          }
+        })
+
+        const { error: breaksError } = await supabase
+          .from('breaks')
+          .insert(breakRecords)
+
+        if (breaksError) {
+          console.error('Error saving breaks:', breaksError)
+          // Don't throw - session was created successfully, breaks are supplementary
+        } else {
+          console.log('✅ Break periods saved successfully')
+        }
       }
 
       console.log('✅ Manual session created:', session.id)
