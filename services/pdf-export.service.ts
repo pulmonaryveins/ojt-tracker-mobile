@@ -349,19 +349,9 @@ export class PDFExportService {
             </table>
           ` : ''}
 
-          <!-- Work Description -->
-          <div class="section-title">II. Work Description / Activities Performed</div>
-          <div class="section-content">
-            ${session.description ? `
-              <div class="content-text">${session.description}</div>
-            ` : `
-              <div class="empty-field">[No description provided]</div>
-            `}
-          </div>
-
           ${hasReport ? `
-            <!-- Report Section -->
-            <div class="section-title">III. Session Report</div>
+            <!-- Session Report -->
+            <div class="section-title">II. Session Report</div>
 
             ${session.tasks_completed ? `
               <div style="margin: 20px 0;">
@@ -390,9 +380,17 @@ export class PDFExportService {
                 <div style="font-weight: bold; font-size: 11pt; margin-bottom: 10px; padding: 5px 10px; background: #e3f2fd; border-left: 4px solid #2196f3;">
                   C. Supporting Documents / Photos
                 </div>
-                <div class="section-content">
-                  <div class="content-text">
+                <div class="section-content" style="text-align: center;">
+                  <div class="content-text" style="margin-bottom: 15px;">
                     <strong>${session.report_images.length}</strong> supporting document${session.report_images.length > 1 ? 's' : ''} ${session.report_images.length > 1 ? 'have' : 'has'} been attached to this activity report.
+                  </div>
+                  <div class="images-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
+                    ${session.report_images.map((imageUrl, index) => `
+                      <div style="text-align: center; page-break-inside: avoid;">
+                        <img src="${imageUrl}" alt="Supporting Document ${index + 1}" style="max-width: 100%; max-height: 300px; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" />
+                        <div style="font-size: 10pt; color: #666; margin-top: 5px;">Document ${index + 1}</div>
+                      </div>
+                    `).join('')}
                   </div>
                 </div>
               </div>

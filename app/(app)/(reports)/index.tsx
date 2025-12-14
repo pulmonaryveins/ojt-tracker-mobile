@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
-import { View, ScrollView, RefreshControl, TouchableOpacity, Alert } from 'react-native'
+import { View, ScrollView, RefreshControl, TouchableOpacity } from 'react-native'
 import { useFocusEffect } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { ThemedView } from '../../../components/themed/ThemedView'
 import { ThemedText } from '../../../components/themed/ThemedText'
 import { ThemedCard } from '../../../components/themed/ThemedCard'
+import { Modal } from '../../../components/ui/Modal'
 import { useAuthStore } from '../../../stores/auth.store'
 import { supabase } from '../../../lib/supabase'
 import { PDFExportService } from '../../../services/pdf-export.service'
@@ -21,6 +22,13 @@ export default function ReportsScreen() {
   const [refreshing, setRefreshing] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [selectedPeriod, setSelectedPeriod] = useState<'week' | 'month' | 'all'>('month')
+  const [modal, setModal] = useState<{
+    visible: boolean
+    title: string
+    message: string
+    type: 'success' | 'error' | 'warning' | 'info'
+    actions?: Array<{ text: string; onPress: () => void; variant?: 'primary' | 'outline' }>
+  }>({ visible: false, title: '', message: '', type: 'info' })
 
   // Statistics
   const [totalHours, setTotalHours] = useState(0)
@@ -132,32 +140,55 @@ export default function ReportsScreen() {
     const filteredSessions = getFilteredSessions()
     
     if (filteredSessions.length === 0) {
-      Alert.alert('No Data', 'No sessions found for the selected period.')
+      setModal({
+        visible: true,
+        title: 'No Data',
+        message: 'No sessions found for the selected period.',
+        type: 'warning'
+      })
       return
     }
 
-    Alert.alert(
-      'Export Report',
-      `Export ${filteredSessions.length} session${filteredSessions.length > 1 ? 's' : ''} as PDF?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
+    setModal({
+      visible: true,
+      title: 'Export Report',
+      message: `Export ${filteredSessions.length} session${filteredSessions.length > 1 ? 's' : ''} as PDF?`,
+      type: 'info',
+      actions: [
+        {
+          text: 'Cancel',
+          onPress: () => setModal(prev => ({ ...prev, visible: false })),
+          variant: 'outline'
+        },
         {
           text: 'Export',
           onPress: async () => {
+            setModal(prev => ({ ...prev, visible: false }))
             try {
               setExporting(true)
               await PDFExportService.exportMultipleSessions(filteredSessions)
-              Alert.alert('Success', 'Report exported successfully!')
+              setModal({
+                visible: true,
+                title: 'Success',
+                message: 'Report exported successfully!',
+                type: 'success'
+              })
             } catch (error) {
               console.error('Export error:', error)
-              Alert.alert('Error', 'Failed to export report')
+              setModal({
+                visible: true,
+                title: 'Error',
+                message: 'Failed to export report',
+                type: 'error'
+              })
             } finally {
               setExporting(false)
             }
           },
-        },
+          variant: 'primary'
+        }
       ]
-    )
+    })
   }
 
   const handleQuickExport = async (type: 'today' | 'week' | 'month') => {
@@ -185,17 +216,32 @@ export default function ReportsScreen() {
     }
 
     if (filtered.length === 0) {
-      Alert.alert('No Data', `No sessions found for ${type}.`)
+      setModal({
+        visible: true,
+        title: 'No Data',
+        message: `No sessions found for ${type}.`,
+        type: 'warning'
+      })
       return
     }
 
     try {
       setExporting(true)
       await PDFExportService.exportMultipleSessions(filtered)
-      Alert.alert('Success', 'Report exported successfully!')
+      setModal({
+        visible: true,
+        title: 'Success',
+        message: 'Report exported successfully!',
+        type: 'success'
+      })
     } catch (error) {
       console.error('Export error:', error)
-      Alert.alert('Error', 'Failed to export report')
+      setModal({
+        visible: true,
+        title: 'Error',
+        message: 'Failed to export report',
+        type: 'error'
+      })
     } finally {
       setExporting(false)
     }
@@ -555,6 +601,16 @@ export default function ReportsScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Custom Modal */}
+      <Modal
+        visible={modal.visible}
+        title={modal.title}
+        message={modal.message}
+        type={modal.type}
+        onClose={() => setModal(prev => ({ ...prev, visible: false }))}
+        actions={modal.actions}
+      />
     </ThemedView>
   )
 }

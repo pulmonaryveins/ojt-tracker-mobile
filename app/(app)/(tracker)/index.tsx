@@ -38,7 +38,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
-import { View, ScrollView, Alert, TextInput } from 'react-native'
+import { View, ScrollView, TextInput } from 'react-native'
 import { useFocusEffect, useRouter } from 'expo-router'
 import NetInfo from '@react-native-community/netinfo'
 import { Ionicons } from '@expo/vector-icons'
@@ -328,19 +328,22 @@ export default function TrackerScreen() {
         ? `Session completed: ${totalHours.toFixed(2)} hours worked`
         : `Session saved locally. Will sync when online.`
       
-      Alert.alert(
+      showModal(
         'Time Out Successful! 🎉',
         message,
+        'success',
         [
           {
             text: 'View in Activity Logs',
             onPress: () => {
               router.push('/(app)/(logs)')
             },
+            variant: 'primary'
           },
           {
             text: 'Stay Here',
-            style: 'cancel',
+            onPress: () => {},
+            variant: 'outline'
           },
         ]
       )
@@ -467,18 +470,18 @@ export default function TrackerScreen() {
 
     console.log('🗑️ Force reset initiated for session:', activeSession.id)
     
-    Alert.alert(
+    showModal(
       'Force Reset Session',
       `This will permanently delete the session started on ${new Date(activeSession.date).toLocaleDateString()} at ${format12Hour(new Date(`${activeSession.date}T${activeSession.start_time}`))}.\n\nAre you sure?`,
+      'warning',
       [
         { 
           text: 'Cancel', 
-          style: 'cancel',
-          onPress: () => console.log('❌ Force reset cancelled')
+          onPress: () => console.log('❌ Force reset cancelled'),
+          variant: 'outline'
         },
         {
           text: 'Delete',
-          style: 'destructive',
           onPress: async () => {
             try {
               console.log('🗑️ Starting force delete...')
@@ -517,20 +520,21 @@ export default function TrackerScreen() {
               setActionLoading(false)
             }
           },
+          variant: 'outline'
         },
       ]
     )
   }
 
   const handleCleanupStaleSessions = async () => {
-    Alert.alert(
+    showModal(
       'Clean Up Stuck Sessions',
       'This will delete ALL open sessions (sessions with no end time) from the database. Continue?',
+      'warning',
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: 'Cancel', onPress: () => {}, variant: 'outline' },
         {
           text: 'Clean Up',
-          style: 'destructive',
           onPress: async () => {
             try {
               setActionLoading(true)
@@ -557,6 +561,7 @@ export default function TrackerScreen() {
               setActionLoading(false)
             }
           },
+          variant: 'outline'
         },
       ]
     )

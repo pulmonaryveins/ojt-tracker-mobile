@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { View, ScrollView, Alert, Image, TouchableOpacity } from 'react-native'
+import { View, ScrollView, Image, TouchableOpacity } from 'react-native'
 import { useRouter } from 'expo-router'
 import * as ImagePicker from 'expo-image-picker'
 import { ThemedView } from '../../components/themed/ThemedView'
@@ -7,6 +7,7 @@ import { ThemedText } from '../../components/themed/ThemedText'
 import { ThemedCard } from '../../components/themed/ThemedCard'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
+import { Modal } from '../../components/ui/Modal'
 import { useSessionStore } from '../../stores/session.store'
 import { useAuthStore } from '../../stores/auth.store'
 import { supabase } from '../../lib/supabase'
@@ -22,17 +23,38 @@ export default function DailyLogModal() {
   const [notes, setNotes] = useState('')
   const [images, setImages] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
+  const [modal, setModal] = useState<{
+    visible: boolean
+    title: string
+    message: string
+    type: 'info' | 'success' | 'warning' | 'error'
+    actions?: Array<{
+      text: string
+      onPress: () => void
+      variant?: 'primary' | 'outline' | 'ghost'
+    }>
+  }>({ visible: false, title: '', message: '', type: 'info' })
 
   const pickImage = async () => {
     if (images.length >= 3) {
-      Alert.alert('Limit Reached', 'You can only upload up to 3 images')
+      setModal({
+        visible: true,
+        title: 'Limit Reached',
+        message: 'You can only upload up to 3 images',
+        type: 'warning'
+      })
       return
     }
 
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
     
     if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Please grant photo library access')
+      setModal({
+        visible: true,
+        title: 'Permission Needed',
+        message: 'Please grant photo library access',
+        type: 'warning'
+      })
       return
     }
 
@@ -51,14 +73,24 @@ export default function DailyLogModal() {
 
   const takePhoto = async () => {
     if (images.length >= 3) {
-      Alert.alert('Limit Reached', 'You can only upload up to 3 images')
+      setModal({
+        visible: true,
+        title: 'Limit Reached',
+        message: 'You can only upload up to 3 images',
+        type: 'warning'
+      })
       return
     }
 
     const { status } = await ImagePicker.requestCameraPermissionsAsync()
     
     if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Please grant camera access')
+      setModal({
+        visible: true,
+        title: 'Permission Needed',
+        message: 'Please grant camera access',
+        type: 'warning'
+      })
       return
     }
 
@@ -110,7 +142,12 @@ export default function DailyLogModal() {
     try {
       dailyLogSchema.parse({ tasks, lessonsLearned, notes })
     } catch (error: any) {
-      Alert.alert('Validation Error', error.errors[0].message)
+      setModal({
+        visible: true,
+        title: 'Validation Error',
+        message: error.errors[0].message,
+        type: 'error'
+      })
       return
     }
 
@@ -134,10 +171,27 @@ export default function DailyLogModal() {
           .eq('id', activeSession!.id)
       }
       
-      Alert.alert('Success', 'Session ended and log saved!')
-      router.back()
+      setModal({
+        visible: true,
+        title: 'Success',
+        message: 'Session ended and log saved!',
+        type: 'success',
+        actions: [{
+          text: 'OK',
+          onPress: () => {
+            setModal(prev => ({ ...prev, visible: false }))
+            router.back()
+          },
+          variant: 'primary'
+        }]
+      })
     } catch (error: any) {
-      Alert.alert('Error', error.message)
+      setModal({
+        visible: true,
+        title: 'Error',
+        message: error.message,
+        type: 'error'
+      })
     } finally {
       setLoading(false)
     }
@@ -250,6 +304,19 @@ export default function DailyLogModal() {
           </Button>
         </View>
       </ScrollView>
+
+      {/* Custom Modal */}
+      <Modal
+        visible={modal.visible}
+        title={modal.title}
+        type={modal.type}
+        onClose={() => setModal(prev => ({ ...prev, visible: false }))}
+        actions={modal.actions}
+      >
+        <ThemedText style={{ fontSize: 16, lineHeight: 24 }}>
+          {modal.message}
+        </ThemedText>
+      </Modal>
     </ThemedView>
   )
 }
