@@ -386,9 +386,6 @@ function EditProfileContent() {
     return (
       <ThemedView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ThemedText>Loading profile...</ThemedText>
-        <ThemedText variant="secondary" style={{ marginTop: 8, fontSize: 12 }}>
-          Platform: {String(Platform.OS)}
-        </ThemedText>
       </ThemedView>
     )
   }
@@ -711,7 +708,9 @@ function EditProfileContent() {
               style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}
             >
               {!saving && <Ionicons name="checkmark-circle" size={20} color="#fff" style={{ marginRight: 8 }} />}
-              {saving ? 'Saving...' : 'Save Changes'}
+              <ThemedText style={{ color: '#fff' }}>
+                {saving ? 'Saving...' : 'Save Changes'}
+              </ThemedText>
             </Button>
 
             <Button 

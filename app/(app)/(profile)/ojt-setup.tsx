@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { View, KeyboardAvoidingView, Platform, ScrollView } from 'react-native'
+import { View, KeyboardAvoidingView, Platform, ScrollView, Text } from 'react-native'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -100,9 +100,9 @@ function OJTSetupContent() {
       } else {
         await debugLog('No existing OJT setup found')
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error loading OJT setup:', error)
-      await debugLog('ERROR in loadSetup', { error: error.message, stack: error.stack })
+      await debugLog('ERROR in loadSetup', { error: error?.message, stack: error?.stack })
     } finally {
       setLoading(false)
       await debugLog('OJT setup load complete')
@@ -219,30 +219,31 @@ function OJTSetupContent() {
     }
   }
 
-  if (loading) {
-    return (
-      <ThemedView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ThemedText>Loading OJT setup...</ThemedText>
-      </ThemedView>
-    )
-  }
-
-  // Calculate estimated completion date
-  const calculateEndDate = () => {
-    if (!formData.start_date) return null
-    
-    const start = new Date(formData.start_date)
-    const daysNeeded = Math.ceil(formData.required_hours / 8)
-    const weeksNeeded = Math.ceil(daysNeeded / 5)
-    
-    const estimatedEnd = new Date(start)
-    estimatedEnd.setDate(estimatedEnd.getDate() + (weeksNeeded * 7))
-    
-    return estimatedEnd.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    })
+  // Safe calculation function that always returns a string
+  const calculateEndDate = (): string => {
+    try {
+      if (!formData.start_date) return 'Not calculated'
+      
+      const start = new Date(formData.start_date)
+      if (isNaN(start.getTime())) return 'Invalid start date'
+      
+      const daysNeeded = Math.ceil(formData.required_hours / 8)
+      const weeksNeeded = Math.ceil(daysNeeded / 5)
+      
+      const estimatedEnd = new Date(start)
+      estimatedEnd.setDate(estimatedEnd.getDate() + (weeksNeeded * 7))
+      
+      if (isNaN(estimatedEnd.getTime())) return 'Calculation error'
+      
+      return estimatedEnd.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      })
+    } catch (error) {
+      console.error('Error calculating end date:', error)
+      return 'Calculation error'
+    }
   }
 
   if (loading || !user?.id) {
@@ -252,6 +253,20 @@ function OJTSetupContent() {
         <ThemedText>Loading setup...</ThemedText>
       </ThemedView>
     )
+  }
+
+  // Additional safety check
+  try {
+    if (!ThemedView || !ThemedText || !ThemedCard) {
+      debugLog('ERROR: Missing themed components')
+      return (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <Text>Error: Missing UI components</Text>
+        </View>
+      )
+    }
+  } catch (error) {
+    debugLog('ERROR: Component validation failed', error)
   }
 
   return (
@@ -395,7 +410,7 @@ function OJTSetupContent() {
             </View>
           </ThemedCard>
 
-          {/* Estimation Card */}
+          {/* Estimation Card - FIXED: Now safely renders the calculated date */}
           {formData.start_date && (
             <ThemedCard 
               style={{ 
@@ -430,7 +445,9 @@ function OJTSetupContent() {
               style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}
             >
               {!saving && <Ionicons name="checkmark-circle" size={20} color="#fff" style={{ marginRight: 8 }} />}
-              {saving ? 'Saving...' : 'Save Configuration'}
+              <ThemedText style={{ color: '#fff' }}>
+                {saving ? 'Saving...' : 'Save Configuration'}
+              </ThemedText>
             </Button>
 
             <Button 
