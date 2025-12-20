@@ -54,24 +54,34 @@ export default function ReportsScreen() {
 
     setLoading(true)
     try {
-      const { data, error } = await supabase
+      // Load sessions
+      const { data: sessionsData, error: sessionsError } = await supabase
         .from('sessions')
         .select('*')
         .eq('user_id', user.id)
         .order('date', { ascending: false })
         .order('start_time', { ascending: false })
 
-      if (error) throw error
+      if (sessionsError) throw sessionsError
       
-      const sessionsWithReports = (data || []).map((s: any) => ({
-        ...s,
-        breaks: null,
-        tasks_completed: s.tasks_completed || null,
-        lessons_learned: s.lessons_learned || null,
-        report_images: s.report_images || null,
+      // Load breaks for each session
+      const sessionsWithData = await Promise.all((sessionsData || []).map(async (s: any) => {
+        const { data: breaksData } = await supabase
+          .from('breaks')
+          .select('*')
+          .eq('session_id', s.id)
+          .order('start_time', { ascending: true })
+        
+        return {
+          ...s,
+          breaks: breaksData || [],
+          tasks_completed: s.tasks_completed || null,
+          lessons_learned: s.lessons_learned || null,
+          report_images: s.report_images || null,
+        }
       }))
       
-      setSessions(sessionsWithReports)
+      setSessions(sessionsWithData)
     } catch (error) {
       console.error('Error loading sessions:', error)
     } finally {
@@ -151,8 +161,8 @@ export default function ReportsScreen() {
 
     setModal({
       visible: true,
-      title: 'Export Report',
-      message: `Export ${filteredSessions.length} session${filteredSessions.length > 1 ? 's' : ''} as PDF?`,
+      title: 'Choose Export Format',
+      message: `Export ${filteredSessions.length} session${filteredSessions.length > 1 ? 's' : ''} - Select format:`,
       type: 'info',
       actions: [
         {
@@ -161,7 +171,7 @@ export default function ReportsScreen() {
           variant: 'outline'
         },
         {
-          text: 'Export',
+          text: 'PDF (Detailed)',
           onPress: async () => {
             setModal(prev => ({ ...prev, visible: false }))
             try {
@@ -170,7 +180,7 @@ export default function ReportsScreen() {
               setModal({
                 visible: true,
                 title: 'Success',
-                message: 'Report exported successfully!',
+                message: 'PDF report exported successfully!',
                 type: 'success'
               })
             } catch (error) {
@@ -178,7 +188,7 @@ export default function ReportsScreen() {
               setModal({
                 visible: true,
                 title: 'Error',
-                message: 'Failed to export report',
+                message: 'Failed to export PDF report',
                 type: 'error'
               })
             } finally {
@@ -186,12 +196,39 @@ export default function ReportsScreen() {
             }
           },
           variant: 'primary'
+        },
+        {
+          text: 'CSV (Data)',
+          onPress: async () => {
+            setModal(prev => ({ ...prev, visible: false }))
+            try {
+              setExporting(true)
+              await PDFExportService.exportSessionsAsCSV(filteredSessions)
+              setModal({
+                visible: true,
+                title: 'Success',
+                message: 'CSV report exported successfully!',
+                type: 'success'
+              })
+            } catch (error) {
+              console.error('Export error:', error)
+              setModal({
+                visible: true,
+                title: 'Error',
+                message: 'Failed to export CSV report',
+                type: 'error'
+              })
+            } finally {
+              setExporting(false)
+            }
+          },
+          variant: 'outline'
         }
       ]
     })
   }
 
-  const handleQuickExport = async (type: 'today' | 'week' | 'month') => {
+  const handleQuickExport = async (type: 'today' | 'week' | 'month', format: 'pdf' | 'csv' = 'pdf') => {
     const now = new Date()
     let filtered: Session[] = []
 
@@ -225,26 +262,74 @@ export default function ReportsScreen() {
       return
     }
 
-    try {
-      setExporting(true)
-      await PDFExportService.exportMultipleSessions(filtered)
-      setModal({
-        visible: true,
-        title: 'Success',
-        message: 'Report exported successfully!',
-        type: 'success'
-      })
-    } catch (error) {
-      console.error('Export error:', error)
-      setModal({
-        visible: true,
-        title: 'Error',
-        message: 'Failed to export report',
-        type: 'error'
-      })
-    } finally {
-      setExporting(false)
-    }
+    // Show format selection modal
+    setModal({
+      visible: true,
+      title: 'Choose Export Format',
+      message: `Export ${filtered.length} session${filtered.length > 1 ? 's' : ''} from ${type} - Select format:`,
+      type: 'info',
+      actions: [
+        {
+          text: 'Cancel',
+          onPress: () => setModal(prev => ({ ...prev, visible: false })),
+          variant: 'outline'
+        },
+        {
+          text: 'PDF',
+          onPress: async () => {
+            setModal(prev => ({ ...prev, visible: false }))
+            try {
+              setExporting(true)
+              await PDFExportService.exportMultipleSessions(filtered)
+              setModal({
+                visible: true,
+                title: 'Success',
+                message: 'PDF report exported successfully!',
+                type: 'success'
+              })
+            } catch (error) {
+              console.error('Export error:', error)
+              setModal({
+                visible: true,
+                title: 'Error',
+                message: 'Failed to export PDF report',
+                type: 'error'
+              })
+            } finally {
+              setExporting(false)
+            }
+          },
+          variant: 'primary'
+        },
+        {
+          text: 'CSV',
+          onPress: async () => {
+            setModal(prev => ({ ...prev, visible: false }))
+            try {
+              setExporting(true)
+              await PDFExportService.exportSessionsAsCSV(filtered)
+              setModal({
+                visible: true,
+                title: 'Success',
+                message: 'CSV report exported successfully!',
+                type: 'success'
+              })
+            } catch (error) {
+              console.error('Export error:', error)
+              setModal({
+                visible: true,
+                title: 'Error',
+                message: 'Failed to export CSV report',
+                type: 'error'
+              })
+            } finally {
+              setExporting(false)
+            }
+          },
+          variant: 'outline'
+        }
+      ]
+    })
   }
 
   if (loading) {

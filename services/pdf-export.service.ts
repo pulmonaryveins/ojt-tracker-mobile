@@ -447,10 +447,10 @@ export class PDFExportService {
   private static formatTimeOnly(timeStr: string | null): string {
     if (!timeStr) return '-'
     try {
-      const [hours, minutes, seconds] = timeStr.split(':').map(Number)
+      const [hours, minutes] = timeStr.split(':').map(Number)
       const period = hours >= 12 ? 'PM' : 'AM'
       const hour12 = hours % 12 || 12
-      return `${hour12}:${String(minutes).padStart(2, '0')}:${String(seconds || 0).padStart(2, '0')} ${period}`
+      return `${hour12}:${String(minutes).padStart(2, '0')} ${period}`
     } catch {
       return timeStr
     }
@@ -742,6 +742,9 @@ export class PDFExportService {
                 return timeStr
               }
             }
+            const hasBreaks = session.breaks && session.breaks.length > 0
+            const hasImages = session.report_images && session.report_images.length > 0
+            
             return `
             <div class="session-entry">
               <div class="session-header-row">
@@ -758,6 +761,20 @@ export class PDFExportService {
                 <span class="detail-label">Time Out:</span>
                 <span>${formatTimeOnly(session.end_time) || 'Ongoing'}</span>
               </div>
+              
+              ${hasBreaks ? `
+                <div class="session-detail-row">
+                  <span class="detail-label">Break Periods:</span>
+                  <span>${session.breaks!.length} break${session.breaks!.length > 1 ? 's' : ''} taken</span>
+                </div>
+                <div style="margin-left: 20px; margin-top: 8px; margin-bottom: 12px;">
+                  ${session.breaks!.map((brk: any, brkIndex: number) => `
+                    <div style="font-size: 10pt; color: #555; margin-bottom: 4px;">
+                      • Break ${brkIndex + 1}: ${formatTimeOnly(brk.start_time)} - ${formatTimeOnly(brk.end_time || null)}
+                    </div>
+                  `).join('')}
+                </div>
+              ` : ''}
               
               ${session.description ? `
                 <div class="session-detail-row">
@@ -780,10 +797,18 @@ export class PDFExportService {
                 </div>
               ` : ''}
               
-              ${session.report_images && session.report_images.length > 0 ? `
+              ${hasImages ? `
                 <div class="session-detail-row">
-                  <span class="detail-label">Attachments:</span>
-                  <span>${session.report_images.length} supporting document${session.report_images.length > 1 ? 's' : ''}</span>
+                  <span class="detail-label">Supporting Documents:</span>
+                  <span>${session.report_images!.length} attachment${session.report_images!.length > 1 ? 's' : ''}</span>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 12px; margin-bottom: 12px;">
+                  ${session.report_images!.map((imageUrl: string, imgIndex: number) => `
+                    <div style="text-align: center; page-break-inside: avoid;">
+                      <img src="${imageUrl}" alt="Document ${imgIndex + 1}" style="max-width: 100%; max-height: 250px; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" />
+                      <div style="font-size: 9pt; color: #666; margin-top: 5px;">Document ${imgIndex + 1}</div>
+                    </div>
+                  `).join('')}
                 </div>
               ` : ''}
             </div>
@@ -818,5 +843,102 @@ export class PDFExportService {
         </body>
       </html>
     `
+  }
+
+  /**
+   * Export multiple sessions as CSV file
+   */
+  static async exportSessionsAsCSV(sessions: Session[]): Promise<void> {
+    try {
+      if (!sessions || sessions.length === 0) {
+        throw new Error('No sessions to export')
+      }
+      
+      console.log('📊 Generating CSV for', sessions.length, 'sessions')
+      
+      const formatTimeOnly = (timeStr: string | null) => {
+        if (!timeStr) return ''
+        try {
+          const [hours, minutes] = timeStr.split(':').map(Number)
+          const period = hours >= 12 ? 'PM' : 'AM'
+          const hour12 = hours % 12 || 12
+          return `${hour12}:${String(minutes).padStart(2, '0')} ${period}`
+        } catch {
+          return timeStr
+        }
+      }
+      
+      // CSV Header
+      const headers = [
+        'No.',
+        'Date',
+        'Day',
+        'Time In',
+        'Time Out',
+        'Break Periods',
+        'Total Hours'
+      ]
+      
+      // CSV Rows
+      const rows = sessions.map((session, index) => {
+        const breakInfo = session.breaks && session.breaks.length > 0
+          ? session.breaks.map((brk: any, brkIdx: number) => 
+              `Break ${brkIdx + 1}: ${formatTimeOnly(brk.start_time)} - ${formatTimeOnly(brk.end_time)}`
+            ).join('; ')
+          : 'No breaks'
+        
+        return [
+          index + 1,
+          dateUtils.formatPH(session.date, 'MM/dd/yyyy'),
+          dateUtils.formatPH(session.date, 'EEEE'),
+          formatTimeOnly(session.start_time),
+          formatTimeOnly(session.end_time),
+          `"${breakInfo}"`, // Quoted to handle commas in break info
+          session.total_hours.toFixed(2)
+        ]
+      })
+      
+      // Total row
+      const totalHours = sessions.reduce((sum, s) => sum + s.total_hours, 0)
+      rows.push([
+        '',
+        '',
+        '',
+        '',
+        'TOTAL:',
+        '',
+        totalHours.toFixed(2)
+      ])
+      
+      // Generate CSV content
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.join(','))
+      ].join('\n')
+      
+      const fileName = `OJT-Report-${dateUtils.formatPH(new Date(), 'yyyy-MM-dd')}.csv`
+      const fileUri = `${FileSystem.documentDirectory}${fileName}`
+      
+      // Write CSV file
+      await FileSystem.writeAsStringAsync(fileUri, csvContent, {
+        encoding: FileSystem.EncodingType.UTF8
+      })
+      
+      console.log('✅ CSV generated:', fileUri)
+      
+      // Share the CSV
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'text/csv',
+          dialogTitle: fileName,
+          UTI: 'public.comma-separated-values-text'
+        })
+      } else {
+        throw new Error('Sharing is not available on this device')
+      }
+    } catch (error) {
+      console.error('CSV Export Error:', error)
+      throw error
+    }
   }
 }
