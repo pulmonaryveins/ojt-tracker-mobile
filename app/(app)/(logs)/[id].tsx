@@ -44,8 +44,7 @@ export default function SessionDetailScreen() {
   const [editBreaks, setEditBreaks] = useState<Break[]>([])
   
   // Session report state
-  const [editTasksCompleted, setEditTasksCompleted] = useState('')
-  const [editLessonsLearned, setEditLessonsLearned] = useState('')
+  const [editJournal, setEditJournal] = useState('')
   const [editReportImages, setEditReportImages] = useState<string[]>([])
   const [uploadingImage, setUploadingImage] = useState(false)
 
@@ -76,8 +75,7 @@ export default function SessionDetailScreen() {
 
   useEffect(() => {
     if (session && isEditingReport) {
-      setEditTasksCompleted(session.tasks_completed || '')
-      setEditLessonsLearned(session.lessons_learned || '')
+      setEditJournal(session.journal || '')
       setEditReportImages(session.report_images || [])
     }
   }, [isEditingReport, session])
@@ -92,8 +90,7 @@ export default function SessionDetailScreen() {
       const sessionData: Session = {
         ...data,
         breaks: data.breaks || [],
-        tasks_completed: data.tasks_completed || null,
-        lessons_learned: data.lessons_learned || null,
+        journal: data.journal || null,
         report_images: data.report_images || null,
       }
       setSession(sessionData)
@@ -252,8 +249,7 @@ export default function SessionDetailScreen() {
     setSaving(true)
     try {
       await SessionService.updateSession(session.id, {
-        tasks_completed: editTasksCompleted || null,
-        lessons_learned: editLessonsLearned || null,
+        journal: editJournal || null,
         report_images: editReportImages.length > 0 ? editReportImages : null,
       })
 
@@ -275,8 +271,7 @@ export default function SessionDetailScreen() {
     setShowDeleteReportModal(false)
     try {
       await SessionService.updateSession(session!.id, {
-        tasks_completed: null,
-        lessons_learned: null,
+        journal: null,
         report_images: null,
       })
       Alert.alert('Success', 'Session report deleted successfully')
@@ -547,7 +542,7 @@ export default function SessionDetailScreen() {
                     Session Report
                   </ThemedText>
                 </View>
-                {!isEditingReport && (session.tasks_completed || session.lessons_learned || (session.report_images && session.report_images.length > 0)) && (
+                {!isEditingReport && (session.journal || (session.report_images && session.report_images.length > 0)) && (
                   <TouchableOpacity onPress={() => setIsEditingReport(true)}>
                     <Ionicons name="pencil" size={20} color={colors.accent} />
                   </TouchableOpacity>
@@ -556,30 +551,30 @@ export default function SessionDetailScreen() {
 
               {isEditingReport ? (
                 <>
-                  {/* Tasks Completed Edit */}
+                  {/* Daily Journal Edit */}
                   <View className="mb-4">
                     <View className="flex-row items-center mb-3">
-                      <Ionicons name="checkmark-circle-outline" size={20} color={colors.accent} style={{ marginRight: 8 }} />
+                      <Ionicons name="journal-outline" size={20} color={colors.accent} style={{ marginRight: 8 }} />
                       <ThemedText weight="semibold" style={{ fontSize: 15 }}>
-                        Tasks Completed
+                        Daily Journal
                       </ThemedText>
                     </View>
                     <TextInput
-                      value={editTasksCompleted}
-                      onChangeText={setEditTasksCompleted}
-                      placeholder="List the tasks you completed today...\n• Task 1\n• Task 2\n• Task 3"
+                      value={editJournal}
+                      onChangeText={setEditJournal}
+                      placeholder="Describe what you did today, what you learned, and any insights...\n\nExample:\n• Worked on implementing login feature\n• Learned about JWT authentication\n• Gained better understanding of secure coding practices"
                       placeholderTextColor={colors.textSecondary}
                       multiline
-                      numberOfLines={6}
-                      maxLength={1000}
+                      numberOfLines={12}
+                      maxLength={2000}
                       style={{
                         backgroundColor: colors.card,
                         color: colors.text,
                         padding: 16,
                         borderRadius: 12,
                         fontSize: 15,
-                        minHeight: 140,
-                        maxHeight: 300,
+                        minHeight: 280,
+                        maxHeight: 400,
                         textAlignVertical: 'top',
                         borderWidth: 1,
                         borderColor: colors.border,
@@ -587,42 +582,7 @@ export default function SessionDetailScreen() {
                       }}
                     />
                     <ThemedText variant="secondary" style={{ fontSize: 11, marginTop: 6, textAlign: 'right' }}>
-                      {editTasksCompleted.length}/1000 characters
-                    </ThemedText>
-                  </View>
-
-                  {/* Lessons Learned Edit */}
-                  <View className="mb-4">
-                    <View className="flex-row items-center mb-3">
-                      <Ionicons name="bulb-outline" size={20} color={colors.accent} style={{ marginRight: 8 }} />
-                      <ThemedText weight="semibold" style={{ fontSize: 15 }}>
-                        Lessons Learned
-                      </ThemedText>
-                    </View>
-                    <TextInput
-                      value={editLessonsLearned}
-                      onChangeText={setEditLessonsLearned}
-                      placeholder="What did you learn today?\n• Lesson 1\n• Lesson 2\n• Key insights"
-                      placeholderTextColor={colors.textSecondary}
-                      multiline
-                      numberOfLines={6}
-                      maxLength={1000}
-                      style={{
-                        backgroundColor: colors.card,
-                        color: colors.text,
-                        padding: 16,
-                        borderRadius: 12,
-                        fontSize: 15,
-                        minHeight: 140,
-                        maxHeight: 300,
-                        textAlignVertical: 'top',
-                        borderWidth: 1,
-                        borderColor: colors.border,
-                        lineHeight: 24,
-                      }}
-                    />
-                    <ThemedText variant="secondary" style={{ fontSize: 11, marginTop: 6, textAlign: 'right' }}>
-                      {editLessonsLearned.length}/1000 characters
+                      {editJournal.length}/2000 characters
                     </ThemedText>
                   </View>
 
@@ -690,7 +650,7 @@ export default function SessionDetailScreen() {
                     <Button variant="outline" onPress={() => setIsEditingReport(false)} disabled={saving}>
                       Cancel
                     </Button>
-                    {(session.tasks_completed || session.lessons_learned || (session.report_images && session.report_images.length > 0)) && (
+                    {(session.journal || (session.report_images && session.report_images.length > 0)) && (
                       <Button variant="danger" onPress={handleDeleteReport}>
                         Delete Report
                       </Button>
@@ -699,13 +659,13 @@ export default function SessionDetailScreen() {
                 </>
               ) : (
                 <>
-                  {/* Tasks Completed View */}
-                  {session.tasks_completed && (
+                  {/* Daily Journal View */}
+                  {session.journal && (
                     <View className="mb-4">
                       <View className="flex-row items-center mb-3">
-                        <Ionicons name="checkmark-circle-outline" size={20} color={"#4ade80"} style={{ marginRight: 8 }} />
+                        <Ionicons name="journal-outline" size={20} color={colors.accent} style={{ marginRight: 8 }} />
                         <ThemedText weight="semibold" style={{ fontSize: 15 }}>
-                          Tasks Completed
+                          Daily Journal
                         </ThemedText>
                       </View>
                       <View style={{ 
@@ -713,33 +673,10 @@ export default function SessionDetailScreen() {
                         padding: 14,
                         borderRadius: 10,
                         borderWidth: 2,
-                        borderColor: '#4ade80',
+                        borderColor: colors.accent,
                       }}>
                         <ThemedText style={{ fontSize: 15, lineHeight: 24 }}>
-                          {session.tasks_completed}
-                        </ThemedText>
-                      </View>
-                    </View>
-                  )}
-
-                  {/* Lessons Learned View */}
-                  {session.lessons_learned && (
-                    <View className="mb-4">
-                      <View className="flex-row items-center mb-3">
-                        <Ionicons name="bulb-outline" size={20} color={"#fbbf24"} style={{ marginRight: 8 }} />
-                        <ThemedText weight="semibold" style={{ fontSize: 15 }}>
-                          Lessons Learned
-                        </ThemedText>
-                      </View>
-                      <View style={{ 
-                        backgroundColor: colors.card,
-                        padding: 14,
-                        borderRadius: 10,
-                        borderWidth: 2,
-                        borderColor: '#fbbf24',
-                      }}>
-                        <ThemedText style={{ fontSize: 15, lineHeight: 24 }}>
-                          {session.lessons_learned}
+                          {session.journal}
                         </ThemedText>
                       </View>
                     </View>
@@ -779,7 +716,7 @@ export default function SessionDetailScreen() {
                   )}
 
                   {/* Empty State */}
-                  {!session.tasks_completed && !session.lessons_learned && (!session.report_images || session.report_images.length === 0) && (
+                  {!session.journal && (!session.report_images || session.report_images.length === 0) && (
                     <View className="py-6">
                       <ThemedText variant="secondary" className="text-center mb-4">
                         No report created yet

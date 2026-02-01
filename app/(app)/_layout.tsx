@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router'
 import { useTheme } from '../../hooks/useTheme'
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
+import { View, Platform } from 'react-native'
 
 export default function AppLayout() {
   const { colors } = useTheme()
@@ -12,22 +13,30 @@ export default function AppLayout() {
         tabBarStyle: {
           backgroundColor: colors.background,
           borderTopColor: colors.border,
-          borderTopWidth: 1,
-          height: 65,
-          paddingBottom: 10,
-          paddingTop: 10,
-          elevation: 8,
+          borderTopWidth: 0.5,
+          height: Platform.OS === 'ios' ? 88 : 64,
+          paddingBottom: Platform.OS === 'ios' ? 24 : 8,
+          paddingTop: 8,
+          paddingHorizontal: 4,
+          elevation: 0,
           shadowColor: '#000',
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 8,
+          shadowOffset: { width: 0, height: -1 },
+          shadowOpacity: 0.05,
+          shadowRadius: 4,
         },
-        tabBarActiveTintColor: '#5865f2',
+        tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.textSecondary,
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '600',
           marginTop: 4,
+          letterSpacing: 0.2,
+        },
+        tabBarItemStyle: {
+          paddingVertical: 4,
+        },
+        tabBarIconStyle: {
+          marginTop: 2,
         },
       }}
     >
@@ -43,12 +52,21 @@ export default function AppLayout() {
         name="(dashboard)"
         options={{
           title: 'Dashboard',
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons 
-              name={focused ? 'stats-chart' : 'stats-chart-outline'} 
-              size={24} 
-              color={color} 
-            />
+          tabBarIcon: ({ color, focused }) => (
+            <View style={{
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 42,
+              height: 42,
+              borderRadius: 12,
+              backgroundColor: focused ? `${color}15` : 'transparent',
+            }}>
+              <Ionicons 
+                name={focused ? 'stats-chart' : 'stats-chart-outline'} 
+                size={22} 
+                color={color} 
+              />
+            </View>
           ),
         }}
       />
@@ -56,12 +74,21 @@ export default function AppLayout() {
         name="(tracker)"
         options={{
           title: 'Tracker',
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons 
-              name={focused ? 'timer' : 'timer-outline'} 
-              size={24} 
-              color={color} 
-            />
+          tabBarIcon: ({ color, focused }) => (
+            <View style={{
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 42,
+              height: 42,
+              borderRadius: 12,
+              backgroundColor: focused ? `${color}15` : 'transparent',
+            }}>
+              <Ionicons 
+                name={focused ? 'timer' : 'timer-outline'} 
+                size={22} 
+                color={color} 
+              />
+            </View>
           ),
         }}
       />
@@ -69,12 +96,21 @@ export default function AppLayout() {
         name="(logs)"
         options={{
           title: 'Logs',
-          tabBarIcon: ({ color, size, focused }) => (
-            <MaterialCommunityIcons 
-              name={focused ? 'notebook' : 'notebook-outline'} 
-              size={24} 
-              color={color} 
-            />
+          tabBarIcon: ({ color, focused }) => (
+            <View style={{
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 42,
+              height: 42,
+              borderRadius: 12,
+              backgroundColor: focused ? `${color}15` : 'transparent',
+            }}>
+              <MaterialCommunityIcons 
+                name={focused ? 'notebook' : 'notebook-outline'} 
+                size={22} 
+                color={color} 
+              />
+            </View>
           ),
         }}
       />
@@ -82,12 +118,21 @@ export default function AppLayout() {
         name="(reports)"
         options={{
           title: 'Reports',
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons 
-              name={focused ? 'document-text' : 'document-text-outline'} 
-              size={24} 
-              color={color} 
-            />
+          tabBarIcon: ({ color, focused }) => (
+            <View style={{
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 42,
+              height: 42,
+              borderRadius: 12,
+              backgroundColor: focused ? `${color}15` : 'transparent',
+            }}>
+              <Ionicons 
+                name={focused ? 'document-text' : 'document-text-outline'} 
+                size={22} 
+                color={color} 
+              />
+            </View>
           ),
         }}
       />
@@ -95,12 +140,21 @@ export default function AppLayout() {
         name="(profile)"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons 
-              name={focused ? 'person' : 'person-outline'} 
-              size={24} 
-              color={color} 
-            />
+          tabBarIcon: ({ color, focused }) => (
+            <View style={{
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 42,
+              height: 42,
+              borderRadius: 12,
+              backgroundColor: focused ? `${color}15` : 'transparent',
+            }}>
+              <Ionicons 
+                name={focused ? 'person' : 'person-outline'} 
+                size={22} 
+                color={color} 
+              />
+            </View>
           ),
         }}
       />

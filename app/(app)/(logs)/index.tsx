@@ -151,8 +151,7 @@ export default function LogsScreen() {
       const sessionsToExport: SessionModel[] = filteredSessions.map(s => ({
         ...s,
         breaks: s.breaks || null,
-        tasks_completed: s.tasks_completed || null,
-        lessons_learned: s.lessons_learned || null,
+        journal: s.journal || null,
         report_images: s.report_images || null,
       }))
       

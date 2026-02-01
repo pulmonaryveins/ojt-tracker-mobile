@@ -100,7 +100,7 @@ export class PDFExportService {
 
   private static generateSessionHTML(session: Session): string {
     const hasBreaks = session.breaks && session.breaks.length > 0
-    const hasReport = session.tasks_completed || session.lessons_learned || (session.report_images && session.report_images.length > 0)
+    const hasReport = session.journal || (session.report_images && session.report_images.length > 0)
     
     return `
       <!DOCTYPE html>
@@ -353,24 +353,13 @@ export class PDFExportService {
             <!-- Session Report -->
             <div class="section-title">II. Session Report</div>
 
-            ${session.tasks_completed ? `
+            ${session.journal ? `
               <div style="margin: 20px 0;">
-                <div style="font-weight: bold; font-size: 11pt; margin-bottom: 10px; padding: 5px 10px; background: #e8f5e9; border-left: 4px solid #4caf50;">
-                  A. Tasks Completed
+                <div style="font-weight: bold; font-size: 11pt; margin-bottom: 10px; padding: 5px 10px; background: #e3f2fd; border-left: 4px solid #2196f3;">
+                  Daily Journal
                 </div>
                 <div class="section-content">
-                  <div class="content-text">${session.tasks_completed}</div>
-                </div>
-              </div>
-            ` : ''}
-
-            ${session.lessons_learned ? `
-              <div style="margin: 20px 0;">
-                <div style="font-weight: bold; font-size: 11pt; margin-bottom: 10px; padding: 5px 10px; background: #fff3e0; border-left: 4px solid #ff9800;">
-                  B. Lessons Learned / Skills Acquired
-                </div>
-                <div class="section-content">
-                  <div class="content-text">${session.lessons_learned}</div>
+                  <div class="content-text">${session.journal}</div>
                 </div>
               </div>
             ` : ''}
@@ -783,17 +772,10 @@ export class PDFExportService {
                 </div>
               ` : ''}
               
-              ${session.tasks_completed ? `
+              ${session.journal ? `
                 <div class="session-detail-row">
-                  <span class="detail-label">Tasks Completed:</span>
-                  <div class="detail-content">${session.tasks_completed}</div>
-                </div>
-              ` : ''}
-              
-              ${session.lessons_learned ? `
-                <div class="session-detail-row">
-                  <span class="detail-label">Lessons Learned:</span>
-                  <div class="detail-content">${session.lessons_learned}</div>
+                  <span class="detail-label">Daily Journal:</span>
+                  <div class="detail-content">${session.journal}</div>
                 </div>
               ` : ''}
               

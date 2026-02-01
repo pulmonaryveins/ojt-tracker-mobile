@@ -23,8 +23,7 @@ export const ojtSetupSchema = z.object({
 })
 
 export const dailyLogSchema = z.object({
-  tasks: z.string().min(1, 'Tasks are required').max(500),
-  lessonsLearned: z.string().max(500).optional(),
+  journal: z.string().min(1, 'Please write your daily journal entry').max(2000),
   notes: z.string().max(500).optional(),
 })
 

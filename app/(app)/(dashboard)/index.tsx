@@ -93,7 +93,16 @@ export default function DashboardScreen() {
     
     const daysNeededTotal = Math.ceil(ojtSetup.required_hours / averageHoursPerDay)
     const estimatedEnd = new Date(startDate)
-    estimatedEnd.setDate(estimatedEnd.getDate() + daysNeededTotal)
+    
+    // Add days while skipping weekends (Saturday=6, Sunday=0)
+    let daysToAdd = daysNeededTotal
+    while (daysToAdd > 0) {
+      estimatedEnd.setDate(estimatedEnd.getDate() + 1)
+      const dayOfWeek = estimatedEnd.getDay()
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        daysToAdd--
+      }
+    }
     
     return estimatedEnd
   }
@@ -287,15 +296,184 @@ export default function DashboardScreen() {
             </View>
           </ThemedCard>
         ) : (
-          <ThemedCard style={{ marginBottom: 24, backgroundColor: '#faa81a20', borderWidth: 2, borderColor: '#faa81a' }}>
-            <View style={{ alignItems: 'center', paddingVertical: 16 }}>
-              <Ionicons name="warning" size={48} color="#faa81a" style={{ marginBottom: 12 }} />
-              <ThemedText weight="bold" style={{ fontSize: 18, marginBottom: 8, textAlign: 'center' }}>
-                Set Up Your OJT
-              </ThemedText>
-              <ThemedText variant="secondary" style={{ textAlign: 'center', fontSize: 14 }}>
-                Configure your requirements to start tracking
-              </ThemedText>
+          <TouchableOpacity 
+            onPress={() => router.push('/(app)/(profile)/ojt-setup')}
+            activeOpacity={0.7}
+          >
+            <ThemedCard style={{ marginBottom: 24, backgroundColor: '#faa81a20', borderWidth: 2, borderColor: '#faa81a' }}>
+              <View style={{ alignItems: 'center', paddingVertical: 24 }}>
+                <View
+                  style={{
+                    width: 64,
+                    height: 64,
+                    borderRadius: 32,
+                    backgroundColor: '#faa81a30',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    marginBottom: 16,
+                  }}
+                >
+                  <Ionicons name="warning" size={32} color="#faa81a" />
+                </View>
+                <ThemedText weight="bold" style={{ fontSize: 20, marginBottom: 8, textAlign: 'center' }}>
+                  Set Up Your OJT
+                </ThemedText>
+                <ThemedText variant="secondary" style={{ textAlign: 'center', fontSize: 14, marginBottom: 20, paddingHorizontal: 16 }}>
+                  Configure your requirements to start tracking your on-the-job training hours
+                </ThemedText>
+                
+                {/* Call-to-Action Button */}
+                <View
+                  style={{
+                    backgroundColor: '#faa81a',
+                    paddingHorizontal: 24,
+                    paddingVertical: 12,
+                    borderRadius: 12,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    shadowColor: '#faa81a',
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 8,
+                    elevation: 4,
+                  }}
+                >
+                  <Ionicons name="settings-outline" size={18} color="#fff" style={{ marginRight: 8 }} />
+                  <ThemedText weight="bold" style={{ color: '#fff', fontSize: 15 }}>
+                    Start Setup
+                  </ThemedText>
+                  <Ionicons name="arrow-forward" size={18} color="#fff" style={{ marginLeft: 8 }} />
+                </View>
+                
+                <ThemedText variant="secondary" style={{ fontSize: 12, marginTop: 16, textAlign: 'center' }}>
+                  Tap anywhere on this card to begin
+                </ThemedText>
+              </View>
+            </ThemedCard>
+          </TouchableOpacity>
+        )}
+
+        {/* First-Time User Guide - Show after setup completion */}
+        {ojtSetup && totalHours === 0 && (
+          <ThemedCard 
+            style={{ 
+              marginBottom: 24, 
+              padding: 20,
+              backgroundColor: '#3ba55d15',
+              borderWidth: 2,
+              borderColor: '#3ba55d40',
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 16 }}>
+              <View
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: '#3ba55d30',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  marginRight: 12,
+                }}
+              >
+                <Ionicons name="checkmark-circle" size={24} color="#3ba55d" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <ThemedText weight="bold" style={{ fontSize: 16, marginBottom: 4 }}>
+                  Great! You're all set up
+                </ThemedText>
+                <ThemedText variant="secondary" style={{ fontSize: 13 }}>
+                  Now let's start tracking your OJT hours
+                </ThemedText>
+              </View>
+            </View>
+
+            <View style={{ gap: 12 }}>
+              <TouchableOpacity
+                onPress={() => router.push('/(app)/(tracker)')}
+                activeOpacity={0.7}
+                style={{
+                  backgroundColor: '#3ba55d',
+                  padding: 16,
+                  borderRadius: 12,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                  <View
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 16,
+                      backgroundColor: '#fff30',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      marginRight: 12,
+                    }}
+                  >
+                    <Ionicons name="time" size={18} color="#fff" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <ThemedText weight="bold" style={{ color: '#fff', fontSize: 14 }}>
+                      Start Time Tracker
+                    </ThemedText>
+                    <ThemedText style={{ color: '#ffffffcc', fontSize: 12 }}>
+                      Clock in to begin tracking hours
+                    </ThemedText>
+                  </View>
+                </View>
+                <Ionicons name="arrow-forward-circle" size={24} color="#fff" />
+              </TouchableOpacity>
+
+              <View
+                style={{
+                  flexDirection: 'row',
+                  gap: 8,
+                  paddingTop: 8,
+                }}
+              >
+                <TouchableOpacity
+                  onPress={() => router.push('/modals/manual-entry')}
+                  activeOpacity={0.7}
+                  style={{
+                    flex: 1,
+                    backgroundColor: colors.card,
+                    padding: 12,
+                    borderRadius: 10,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name="create-outline" size={16} color={colors.accent} style={{ marginRight: 6 }} />
+                    <ThemedText weight="semibold" style={{ fontSize: 12, color: colors.accent }}>
+                      Manual Entry
+                    </ThemedText>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => router.push('/(app)/(logs)')}
+                  activeOpacity={0.7}
+                  style={{
+                    flex: 1,
+                    backgroundColor: colors.card,
+                    padding: 12,
+                    borderRadius: 10,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                    <MaterialCommunityIcons name="notebook-outline" size={16} color={colors.accent} style={{ marginRight: 6 }} />
+                    <ThemedText weight="semibold" style={{ fontSize: 12, color: colors.accent }}>
+                      View Logs
+                    </ThemedText>
+                  </View>
+                </TouchableOpacity>
+              </View>
             </View>
           </ThemedCard>
         )}

@@ -9,7 +9,7 @@ interface SessionState {
   
   // Actions
   startSession: (userId: string) => Promise<void>
-  endSession: (sessionId: string, dailyLog?: { tasks: string; lessonsLearned?: string; notes?: string }) => Promise<void>
+  endSession: (sessionId: string, dailyLog?: { journal: string; notes?: string }) => Promise<void>
   startBreak: (sessionId: string) => Promise<void>
   endBreak: (sessionId: string) => Promise<void>
   loadActiveSession: (userId: string) => Promise<void>
@@ -46,10 +46,51 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   endSession: async (sessionId: string, dailyLog) => {
     set({ isLoading: true, error: null })
     try {
-      await SessionService.endSession(sessionId, dailyLog)
+      const session = get().activeSession
+      if (!session) throw new Error('No active session')
+
+      // Calculate end time and duration
+      const now = new Date()
+      const endTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+      
+      // Calculate duration in seconds (this should match tracker logic)
+      const startDateTime = new Date(`${session.date}T${session.start_time}`)
+      const endDateTime = new Date(`${session.date}T${endTime}`)
+      const totalDurationSeconds = Math.floor((endDateTime.getTime() - startDateTime.getTime()) / 1000)
+      
+      // Calculate break time if any
+      const breaks = session.breaks || []
+      let totalBreakSeconds = 0
+      for (const breakItem of breaks) {
+        if (breakItem.end_time) {
+          const breakStart = new Date(`${session.date}T${breakItem.start_time}`)
+          const breakEnd = new Date(`${session.date}T${breakItem.end_time}`)
+          totalBreakSeconds += Math.floor((breakEnd.getTime() - breakStart.getTime()) / 1000)
+        }
+      }
+      
+      const workDurationSeconds = Math.max(0, totalDurationSeconds - totalBreakSeconds)
+      const totalHours = workDurationSeconds / 3600
+      
+      // End the session with calculated values
+      await SessionService.endSession(
+        sessionId,
+        endTime,
+        workDurationSeconds,
+        totalHours,
+        dailyLog?.notes
+      )
+      
+      // Update session with journal data if provided
+      if (dailyLog?.journal) {
+        const { supabase } = await import('../lib/supabase')
+        await supabase
+          .from('sessions')
+          .update({ journal: dailyLog.journal })
+          .eq('id', sessionId)
+      }
       
       // Clear interval
-      const session = get().activeSession
       if (session && (session as any)._intervalId) {
         clearInterval((session as any)._intervalId)
       }

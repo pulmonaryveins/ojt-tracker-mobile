@@ -100,8 +100,14 @@ export function DateTimePicker({
       
       const newHour24 = isPM ? (hour12 === 12 ? 12 : hour12 + 12) : (hour12 === 12 ? 0 : hour12)
       newDate.setHours(newHour24)
+      
+      // Update hour input state
+      setHourInput(String(hour12))
     } else if (field === 'minute') {
       newDate.setMinutes(newDate.getMinutes() + increment)
+      
+      // Update minute input state
+      setMinuteInput(String(newDate.getMinutes()).padStart(2, '0'))
     }
 
     if (minimumDate && newDate < new Date(minimumDate)) return

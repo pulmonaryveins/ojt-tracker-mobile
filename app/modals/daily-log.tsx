@@ -18,8 +18,7 @@ export default function DailyLogModal() {
   const { activeSession, endSession } = useSessionStore()
   const user = useAuthStore((state) => state.user)
   
-  const [tasks, setTasks] = useState('')
-  const [lessonsLearned, setLessonsLearned] = useState('')
+  const [journal, setJournal] = useState('')
   const [notes, setNotes] = useState('')
   const [images, setImages] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
@@ -31,7 +30,7 @@ export default function DailyLogModal() {
     actions?: Array<{
       text: string
       onPress: () => void
-      variant?: 'primary' | 'outline' | 'ghost'
+      variant?: 'primary' | 'outline' | 'secondary' | 'danger'
     }>
   }>({ visible: false, title: '', message: '', type: 'info' })
 
@@ -140,7 +139,7 @@ export default function DailyLogModal() {
 
   const handleSubmit = async () => {
     try {
-      dailyLogSchema.parse({ tasks, lessonsLearned, notes })
+      dailyLogSchema.parse({ journal, notes })
     } catch (error: any) {
       setModal({
         visible: true,
@@ -158,8 +157,7 @@ export default function DailyLogModal() {
 
       // End session with log data
       await endSession(activeSession!.id, {
-        tasks,
-        lessonsLearned: lessonsLearned || undefined,
+        journal,
         notes: notes || undefined,
       })
 
@@ -208,22 +206,12 @@ export default function DailyLogModal() {
         </ThemedText>
 
         <Input
-          label="Tasks Completed *"
-          value={tasks}
-          onChangeText={setTasks}
-          placeholder="What did you work on today?"
+          label="Daily Journal *"
+          value={journal}
+          onChangeText={setJournal}
+          placeholder="Write about what you did today..."
           multiline
-          numberOfLines={4}
-          textAlignVertical="top"
-        />
-
-        <Input
-          label="Lessons Learned"
-          value={lessonsLearned}
-          onChangeText={setLessonsLearned}
-          placeholder="What did you learn?"
-          multiline
-          numberOfLines={4}
+          numberOfLines={8}
           textAlignVertical="top"
         />
 
@@ -298,7 +286,7 @@ export default function DailyLogModal() {
             className="flex-1"
             onPress={handleSubmit}
             loading={loading}
-            disabled={loading || !tasks}
+            disabled={loading || !journal}
           >
             {images.length > 0 ? `Save & Upload (${images.length})` : 'Save & End'}
           </Button>
@@ -309,14 +297,11 @@ export default function DailyLogModal() {
       <Modal
         visible={modal.visible}
         title={modal.title}
+        message={modal.message}
         type={modal.type}
         onClose={() => setModal(prev => ({ ...prev, visible: false }))}
         actions={modal.actions}
-      >
-        <ThemedText style={{ fontSize: 16, lineHeight: 24 }}>
-          {modal.message}
-        </ThemedText>
-      </Modal>
+      />
     </ThemedView>
   )
 }

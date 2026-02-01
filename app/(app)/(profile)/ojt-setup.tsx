@@ -309,6 +309,126 @@ function OJTSetupContent() {
             </View>
           </View>
 
+          {/* Welcome Guide for New Users */}
+          {!formData.start_date && (
+            <ThemedCard 
+              style={{ 
+                marginBottom: 24, 
+                padding: 20,
+                backgroundColor: '#3ba55d15',
+                borderWidth: 2,
+                borderColor: '#3ba55d40',
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 16 }}>
+                <View
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 20,
+                    backgroundColor: '#3ba55d30',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    marginRight: 12,
+                  }}
+                >
+                  <Ionicons name="rocket" size={20} color="#3ba55d" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <ThemedText weight="bold" style={{ fontSize: 16, marginBottom: 4 }}>
+                    Welcome! Let's get started
+                  </ThemedText>
+                  <ThemedText variant="secondary" style={{ fontSize: 13 }}>
+                    Complete these 3 simple steps to begin tracking your OJT hours
+                  </ThemedText>
+                </View>
+              </View>
+
+              <View style={{ gap: 12, marginLeft: 4 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                  <View
+                    style={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: 12,
+                      backgroundColor: '#3ba55d',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      marginRight: 12,
+                      marginTop: 2,
+                    }}
+                  >
+                    <ThemedText weight="bold" style={{ color: '#fff', fontSize: 12 }}>
+                      1
+                    </ThemedText>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <ThemedText weight="semibold" style={{ fontSize: 13, marginBottom: 2 }}>
+                      Set Required Hours
+                    </ThemedText>
+                    <ThemedText variant="secondary" style={{ fontSize: 12 }}>
+                      Enter the total OJT hours required by your school or program
+                    </ThemedText>
+                  </View>
+                </View>
+
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                  <View
+                    style={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: 12,
+                      backgroundColor: '#3ba55d',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      marginRight: 12,
+                      marginTop: 2,
+                    }}
+                  >
+                    <ThemedText weight="bold" style={{ color: '#fff', fontSize: 12 }}>
+                      2
+                    </ThemedText>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <ThemedText weight="semibold" style={{ fontSize: 13, marginBottom: 2 }}>
+                      Choose Start Date
+                    </ThemedText>
+                    <ThemedText variant="secondary" style={{ fontSize: 12 }}>
+                      Select when you began or will begin your OJT training
+                    </ThemedText>
+                  </View>
+                </View>
+
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                  <View
+                    style={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: 12,
+                      backgroundColor: '#3ba55d',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      marginRight: 12,
+                      marginTop: 2,
+                    }}
+                  >
+                    <ThemedText weight="bold" style={{ color: '#fff', fontSize: 12 }}>
+                      3
+                    </ThemedText>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <ThemedText weight="semibold" style={{ fontSize: 13, marginBottom: 2 }}>
+                      Set Target End Date (Optional)
+                    </ThemedText>
+                    <ThemedText variant="secondary" style={{ fontSize: 12 }}>
+                      Choose your target completion date to track progress
+                    </ThemedText>
+                  </View>
+                </View>
+              </View>
+            </ThemedCard>
+          )}
+
           {/* Info Card */}
           <ThemedCard 
             style={{ 
@@ -322,7 +442,7 @@ function OJTSetupContent() {
             <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
               <Ionicons name="information-circle" size={20} color={colors.accent} style={{ marginRight: 12, marginTop: 2 }} />
               <ThemedText variant="secondary" style={{ fontSize: 13, flex: 1 }}>
-                Set your required OJT hours and training period. This helps track your progress accurately.
+                This information helps you track your OJT progress and ensures you meet your requirements on time.
               </ThemedText>
             </View>
           </ThemedCard>

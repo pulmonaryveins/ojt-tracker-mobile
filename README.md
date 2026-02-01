@@ -5,11 +5,13 @@ A mobile application for tracking On-the-Job Training (OJT) hours built with Rea
 ## 🚀 Features
 
 - ✅ User authentication (Sign up / Sign in)
-- ✅ Track daily OJT hours
+- ✅ Track daily OJT hours with break management
 - ✅ View progress and statistics
 - ✅ Manage profile and OJT setup
-- ✅ Export reports
-- ✅ Dark/Light theme support
+- ✅ Export reports (PDF/CSV)
+- ✅ Dark/Light theme support with customizable accent colors
+- ✅ Offline mode with auto-sync
+- ✅ Modern, optimized navigation bar
 
 ## 🛠️ Tech Stack
 
@@ -64,12 +66,14 @@ ojt-tracker-mobile/
 │   └── ui/                # UI components
 ├── stores/                # Zustand stores
 ├── services/              # API services
+│   ├── pdf-export.service.ts
+│   ├── session.service.ts
+│   └── ...
 ├── hooks/                 # Custom hooks
 ├── types/                 # TypeScript types
 ├── lib/                   # Libraries and utilities
 └── assets/                # Images, fonts, etc.
 ```
-
 
 ## 🤝 Contributing
 

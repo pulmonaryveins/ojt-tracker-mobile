@@ -75,8 +75,7 @@ export default function ReportsScreen() {
         return {
           ...s,
           breaks: breaksData || [],
-          tasks_completed: s.tasks_completed || null,
-          lessons_learned: s.lessons_learned || null,
+          journal: s.journal || null,
           report_images: s.report_images || null,
         }
       }))
@@ -667,7 +666,7 @@ export default function ReportsScreen() {
                 Professional Reports
               </ThemedText>
               <ThemedText variant="secondary" style={{ fontSize: 13, lineHeight: 20 }}>
-                PDFs include time logs, session reports, tasks completed, and lessons learned. Perfect for academic submissions and supervisor reviews.
+                PDFs include time logs, session reports, and daily journal entries. Perfect for academic submissions and supervisor reviews.
               </ThemedText>
             </View>
           </View>

@@ -6,6 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
+    "scheme": "ojttracker",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
@@ -16,7 +17,13 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.projectpransin.ojttracker"
+      "bundleIdentifier": "com.projectpransin.ojttracker",
+      "associatedDomains": ["applinks:syekepcbxpenedsbufvb.supabase.co"],
+      "infoPlist": {
+        "NSCameraUsageDescription": "Allow OJT Tracker to access your camera to take session photos.",
+        "NSPhotoLibraryUsageDescription": "Allow OJT Tracker to access your photos to upload session images.",
+        "NSMicrophoneUsageDescription": "This app does not use the microphone."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -30,7 +37,24 @@
         "android.permission.NOTIFICATIONS",
         "android.permission.RECORD_AUDIO"
       ],
-      "package": "com.projectpransin.ojttracker"
+      "package": "com.projectpransin.ojttracker",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "syekepcbxpenedsbufvb.supabase.co",
+              "pathPrefix": "/auth/v1/verify"
+            },
+            {
+              "scheme": "ojttracker"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"

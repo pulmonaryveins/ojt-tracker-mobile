@@ -38,7 +38,7 @@ const slides: OnboardingSlide[] = [
     id: '3',
     icon: 'document-text-outline',
     title: 'Create Session Reports',
-    description: 'Document your daily accomplishments, tasks completed, and lessons learned. Add photos to capture important moments and memories.',
+    description: 'Document your daily accomplishments through journal entries. Add photos to capture important moments and memories.',
     color: '#eb459e',
   },
   {

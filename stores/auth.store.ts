@@ -11,8 +11,10 @@ interface AuthState {
   setUser: (user: User | null) => void
   setSession: (session: Session | null) => void
   signIn: (email: string, password: string) => Promise<void>
-  signUp: (email: string, password: string, metadata?: Record<string, any>) => Promise<string> // ✅ ADD THIS
+  signUp: (email: string, password: string, metadata?: Record<string, any>) => Promise<string>
   signOut: () => Promise<void>
+  requestPasswordReset: (email: string) => Promise<void>
+  resetPassword: (newPassword: string) => Promise<void>
   initialize: () => Promise<void>
 }
 
@@ -131,6 +133,61 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ loading: false })
     } catch (error) {
       console.error('❌ Error signing out:', error)
+      set({ loading: false })
+      throw error
+    }
+  },
+
+  requestPasswordReset: async (email: string) => {
+    console.log('🔐 Auth Store: requestPasswordReset() called')
+    console.log('   Email:', email)
+    
+    try {
+      set({ loading: true })
+      
+      // Send password reset email with custom scheme redirect
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: 'ojttracker://auth/reset-password',
+      })
+
+      if (error) {
+        console.error('❌ Password reset request error:', error)
+        throw error
+      }
+
+      console.log('✅ Password reset email sent successfully')
+      
+      set({ loading: false })
+    } catch (error) {
+      console.error('❌ Auth store requestPasswordReset error:', error)
+      set({ loading: false })
+      throw error
+    }
+  },
+
+  resetPassword: async (newPassword: string) => {
+    console.log('🔐 Auth Store: resetPassword() called')
+    
+    try {
+      set({ loading: true })
+      
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      })
+
+      if (error) {
+        console.error('❌ Password reset error:', error)
+        throw error
+      }
+
+      console.log('✅ Password updated successfully')
+      
+      // Sign out after password reset for security
+      await get().signOut()
+      
+      set({ loading: false })
+    } catch (error) {
+      console.error('❌ Auth store resetPassword error:', error)
       set({ loading: false })
       throw error
     }
