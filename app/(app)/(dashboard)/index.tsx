@@ -27,6 +27,79 @@ export default function DashboardScreen() {
   const [totalHours, setTotalHours] = useState(0)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [recentSessions, setRecentSessions] = useState<any[]>([])
+  const [estimatedDailyHours, setEstimatedDailyHours] = useState<number>(0)
+
+  // Calculate behavior-based daily hours from historical records
+  const calculateBehaviorBasedDailyHours = useCallback((sessions: any[]): number => {
+    if (!sessions || sessions.length === 0) return 0
+
+    // Filter out outliers and incomplete sessions
+    const validSessions = sessions.filter(session => {
+      // Must have complete data
+      if (!session.start_time || !session.end_time || !session.total_hours) return false
+      
+      // Exclude sessions with unusually high hours (likely overtime - more than 12 hours)
+      if (session.total_hours > 12) return false
+      
+      // Exclude sessions with very low hours (likely incomplete - less than 1 hour)
+      if (session.total_hours < 1) return false
+      
+      // Exclude sessions with abnormally long breaks (more than 3 hours total)
+      if (session.breaks && Array.isArray(session.breaks)) {
+        const totalBreakMinutes = session.breaks.reduce((total: number, breakItem: any) => {
+          if (!breakItem.start_time || !breakItem.end_time) return total
+          const breakStart = breakItem.start_time.split(':').map(Number)
+          const breakEnd = breakItem.end_time.split(':').map(Number)
+          const startMinutes = breakStart[0] * 60 + breakStart[1]
+          const endMinutes = breakEnd[0] * 60 + breakEnd[1]
+          return total + (endMinutes - startMinutes)
+        }, 0)
+        
+        if (totalBreakMinutes > 180) return false // More than 3 hours of breaks
+      }
+      
+      return true
+    })
+
+    if (validSessions.length === 0) return 0
+
+    // Prioritize recent entries - weight recent sessions more heavily
+    // Use last 20 sessions or all if less than 20
+    const recentCount = Math.min(20, validSessions.length)
+    const recentSessions = validSessions.slice(0, recentCount)
+
+    // Calculate weighted average (more recent = higher weight)
+    let totalWeightedHours = 0
+    let totalWeight = 0
+
+    recentSessions.forEach((session, index) => {
+      // Weight decreases linearly from 1.0 (most recent) to 0.5 (oldest)
+      const weight = 1.0 - (index / recentCount) * 0.5
+      totalWeightedHours += session.total_hours * weight
+      totalWeight += weight
+    })
+
+    const weightedAverage = totalWeightedHours / totalWeight
+
+    // Find the most frequent work duration pattern (mode)
+    const hourBuckets: { [key: string]: number } = {}
+    recentSessions.forEach(session => {
+      // Round to nearest 0.5 hours for bucketing
+      const bucket = Math.round(session.total_hours * 2) / 2
+      hourBuckets[bucket] = (hourBuckets[bucket] || 0) + 1
+    })
+
+    // Get the most common duration
+    const mostCommonDuration = Object.entries(hourBuckets)
+      .sort((a, b) => b[1] - a[1])[0]?.[0]
+    const mode = mostCommonDuration ? parseFloat(mostCommonDuration) : weightedAverage
+
+    // Combine weighted average (70%) and mode (30%) for final estimate
+    const dailyHours = weightedAverage * 0.7 + mode * 0.3
+
+    return Math.max(0, dailyHours)
+  }, [])
 
   useFocusEffect(
     useCallback(() => {
@@ -43,18 +116,25 @@ export default function DashboardScreen() {
     try {
       setLoading(true)
       
-      const [profileData, setupData, hours] = await Promise.all([
+      const [profileData, setupData, hours, sessions] = await Promise.all([
         ProfileService.getProfile(user.id),
         OJTSetupService.getSetup(user.id),
         SessionService.getTotalHours(user.id), // Use SessionService for consistency with Activity Logs
+        SessionService.getSessionsWithBreaks(user.id, 30), // Get last 30 sessions for analysis
       ])
       
       setProfile(profileData)
       setOjtSetup(setupData)
       setTotalHours(hours)
+      setRecentSessions(sessions)
+      
+      // Calculate estimated daily hours from recent sessions
+      const dailyHours = calculateBehaviorBasedDailyHours(sessions)
+      setEstimatedDailyHours(dailyHours)
       
       console.log('✅ Dashboard data loaded')
       console.log('📊 Total hours from sessions:', hours)
+      console.log('📈 Estimated daily hours:', dailyHours)
     } catch (error) {
       console.error('❌ Error loading dashboard:', error)
     } finally {
@@ -80,22 +160,23 @@ export default function DashboardScreen() {
     ? Math.max(0, Math.ceil((new Date(ojtSetup.end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))
     : null
 
-  // Calculate estimated ending date based on actual progress
+  // Calculate estimated ending date based on behavior-based progress
   const calculateEstimatedEndDate = () => {
-    if (!ojtSetup || totalHours === 0) return null
+    if (!ojtSetup || totalHours === 0 || estimatedDailyHours === 0) return null
     
     const startDate = new Date(ojtSetup.start_date)
     const today = new Date()
-    const daysElapsed = Math.max(1, Math.ceil((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)))
-    const averageHoursPerDay = totalHours / daysElapsed
+    const remainingHours = Math.max(0, ojtSetup.required_hours - totalHours)
     
-    if (averageHoursPerDay === 0) return null
+    // Calculate days needed based on estimated daily hours
+    const daysNeeded = Math.ceil(remainingHours / estimatedDailyHours)
     
-    const daysNeededTotal = Math.ceil(ojtSetup.required_hours / averageHoursPerDay)
-    const estimatedEnd = new Date(startDate)
+    if (daysNeeded === 0) return today // Already completed
+    
+    const estimatedEnd = new Date(today)
     
     // Add days while skipping weekends (Saturday=6, Sunday=0)
-    let daysToAdd = daysNeededTotal
+    let daysToAdd = daysNeeded
     while (daysToAdd > 0) {
       estimatedEnd.setDate(estimatedEnd.getDate() + 1)
       const dayOfWeek = estimatedEnd.getDay()
@@ -590,9 +671,24 @@ export default function DashboardScreen() {
                     <Ionicons name="analytics" size={18} color="#3ba55d" />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <ThemedText variant="secondary" style={{ fontSize: 11, marginBottom: 2 }}>
-                      Estimated Completion
-                    </ThemedText>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                      <ThemedText variant="secondary" style={{ fontSize: 11 }}>
+                        Estimated Completion
+                      </ThemedText>
+                      <View 
+                        style={{ 
+                          backgroundColor: colors.accent + '20',
+                          paddingHorizontal: 6,
+                          paddingVertical: 2,
+                          borderRadius: 4,
+                          marginLeft: 6
+                        }}
+                      >
+                        <ThemedText style={{ fontSize: 9, color: colors.accent }}>
+                          ESTIMATE
+                        </ThemedText>
+                      </View>
+                    </View>
                     <ThemedText weight="semibold" style={{ fontSize: 14, color: '#3ba55d' }}>
                       {estimatedEndDate.toLocaleDateString('en-US', {
                         month: 'short',
@@ -601,7 +697,7 @@ export default function DashboardScreen() {
                       })}
                     </ThemedText>
                     <ThemedText variant="secondary" style={{ fontSize: 10, marginTop: 2 }}>
-                      Based on your current pace
+                      Based on {estimatedDailyHours.toFixed(1)}h/day avg (recent work patterns)
                     </ThemedText>
                   </View>
                 </View>

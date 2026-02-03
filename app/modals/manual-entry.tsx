@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { View, ScrollView, Alert, TouchableOpacity, TextInput } from 'react-native'
+import { View, ScrollView, Alert, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { ThemedView } from '../../components/themed/ThemedView'
@@ -29,6 +29,9 @@ export default function ManualEntryModal() {
   const [timeOut, setTimeOut] = useState('')
   const [breaks, setBreaks] = useState<LocalBreakItem[]>([{ id: 'break_1', startTime: '', endTime: '' }])
   const [loading, setLoading] = useState(false)
+  const [loadingAverage, setLoadingAverage] = useState(false)
+  const [averageHours, setAverageHours] = useState<number | null>(null)
+  const [autoFilled, setAutoFilled] = useState(false)
   const [errors, setErrors] = useState<{ [key: string]: string }>({})
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [modal, setModal] = useState<{
@@ -56,6 +59,161 @@ export default function ManualEntryModal() {
   const parseTimeToMinutes = (timeString: string): number => {
     const [hours, minutes] = timeString.split(':').map(Number)
     return hours * 60 + minutes
+  }
+
+  const calculateAverageTime = async () => {
+    if (!user?.id) return
+    
+    setLoadingAverage(true)
+    try {
+      // Get user's last 10 sessions to calculate average
+      const sessions = await SessionService.getSessions(user.id, 10)
+      
+      if (sessions.length === 0) {
+        setModal({
+          visible: true,
+          title: 'No History',
+          message: 'No previous sessions found to calculate average time.',
+          type: 'info'
+        })
+        setLoadingAverage(false)
+        return
+      }
+
+      // Filter sessions with valid time data
+      const validSessions = sessions.filter(s => s.start_time && s.end_time)
+      
+      if (validSessions.length === 0) {
+        setModal({
+          visible: true,
+          title: 'Insufficient Data',
+          message: 'No complete session records found to calculate averages.',
+          type: 'info'
+        })
+        setLoadingAverage(false)
+        return
+      }
+
+      // Calculate average start time (Time In)
+      const startTimeInMinutes = validSessions.map(s => {
+        const [hour, min] = s.start_time.split(':').map(Number)
+        return hour * 60 + min
+      })
+      const avgStartMinutes = Math.round(startTimeInMinutes.reduce((a, b) => a + b, 0) / startTimeInMinutes.length)
+      const avgStartHour = Math.floor(avgStartMinutes / 60)
+      const avgStartMin = avgStartMinutes % 60
+
+      // Calculate average end time (Time Out)
+      const endTimeInMinutes = validSessions.map(s => {
+        const [hour, min] = (s.end_time || '17:00:00').split(':').map(Number)
+        return hour * 60 + min
+      })
+      const avgEndMinutes = Math.round(endTimeInMinutes.reduce((a, b) => a + b, 0) / endTimeInMinutes.length)
+      const avgEndHour = Math.floor(avgEndMinutes / 60)
+      const avgEndMin = avgEndMinutes % 60
+
+      // Calculate average break duration
+      const breakDurations = validSessions.map(s => {
+        if (!s.breaks || !Array.isArray(s.breaks) || s.breaks.length === 0) return 0
+        
+        return s.breaks.reduce((total, breakItem) => {
+          if (!breakItem.start_time || !breakItem.end_time) return total
+          
+          const breakStart = breakItem.start_time.split(':').map(Number)
+          const breakEnd = breakItem.end_time.split(':').map(Number)
+          const startMinutes = breakStart[0] * 60 + breakStart[1]
+          const endMinutes = breakEnd[0] * 60 + breakEnd[1]
+          
+          return total + (endMinutes - startMinutes)
+        }, 0)
+      })
+      
+      const avgBreakMinutes = Math.round(breakDurations.reduce((a, b) => a + b, 0) / breakDurations.length)
+
+      // Calculate average total hours for display
+      const totalHours = validSessions.reduce((sum, session) => sum + (session.total_hours || 0), 0)
+      const avgHours = totalHours / validSessions.length
+      setAverageHours(avgHours)
+
+      // Set the calculated times for today's date
+      const today = new Date()
+      
+      const startDate = new Date(today)
+      startDate.setHours(avgStartHour, avgStartMin, 0, 0)
+      
+      const endDate = new Date(today)
+      endDate.setHours(avgEndHour, avgEndMin, 0, 0)
+      
+      setTimeIn(startDate.toISOString())
+      setTimeOut(endDate.toISOString())
+      
+      // Auto-fill average break if there is one
+      if (avgBreakMinutes > 0) {
+        // Calculate break start (midpoint of work time)
+        const workMinutes = (avgEndMinutes - avgStartMinutes)
+        const breakStartMinutes = avgStartMinutes + Math.floor((workMinutes - avgBreakMinutes) / 2)
+        const breakEndMinutes = breakStartMinutes + avgBreakMinutes
+        
+        const breakStartHour = Math.floor(breakStartMinutes / 60)
+        const breakStartMin = breakStartMinutes % 60
+        const breakEndHour = Math.floor(breakEndMinutes / 60)
+        const breakEndMin = breakEndMinutes % 60
+        
+        const breakStart = new Date(today)
+        breakStart.setHours(breakStartHour, breakStartMin, 0, 0)
+        
+        const breakEnd = new Date(today)
+        breakEnd.setHours(breakEndHour, breakEndMin, 0, 0)
+        
+        setBreaks([{
+          id: Date.now().toString(),
+          startTime: breakStart.toISOString(),
+          endTime: breakEnd.toISOString()
+        }])
+      }
+      
+      setAutoFilled(true)
+
+      // Format times in 12-hour format
+      const formatTime12h = (hour: number, min: number) => {
+        const period = hour >= 12 ? 'PM' : 'AM'
+        const hour12 = hour % 12 || 12
+        return `${hour12}:${String(min).padStart(2, '0')} ${period}`
+      }
+
+      const avgBreakHours = avgBreakMinutes / 60
+      let breakInfo = ''
+      
+      if (avgBreakMinutes > 0) {
+        const workMinutes = (avgEndMinutes - avgStartMinutes)
+        const breakStartMinutes = avgStartMinutes + Math.floor((workMinutes - avgBreakMinutes) / 2)
+        const breakEndMinutes = breakStartMinutes + avgBreakMinutes
+        
+        const breakStartHour = Math.floor(breakStartMinutes / 60)
+        const breakStartMin = breakStartMinutes % 60
+        const breakEndHour = Math.floor(breakEndMinutes / 60)
+        const breakEndMin = breakEndMinutes % 60
+        
+        breakInfo = `\n\nBreak:\n${formatTime12h(breakStartHour, breakStartMin)} - ${formatTime12h(breakEndHour, breakEndMin)} (${avgBreakHours.toFixed(1)}h)`
+      }
+
+      setModal({
+        visible: true,
+        title: 'Auto-Filled',
+        message: `Times calculated from your last ${validSessions.length} sessions:\n\nAvg Time In: ${formatTime12h(avgStartHour, avgStartMin)}\nAvg Time Out: ${formatTime12h(avgEndHour, avgEndMin)}\nAvg Work Hours: ${avgHours.toFixed(1)}h${breakInfo}\n\nYou can edit these values before saving.`,
+        type: 'success'
+      })
+    } catch (error: any) {
+      console.error('Error calculating average:', error)
+      setModal({
+        visible: true,
+        title: 'Error',
+        message: 'Failed to calculate average time',
+        type: 'error'
+      })
+    } finally {
+      setLoadingAverage(false)
+    }
   }
 
   const addBreak = () => {
@@ -445,6 +603,34 @@ export default function ManualEntryModal() {
           mode="time"
           placeholder="Select time out"
         />
+
+        {/* Auto-Entry Button */}
+        <Button
+          variant="outline"
+          onPress={calculateAverageTime}
+          style={{ 
+            marginBottom: 20,
+            borderColor: colors.accent,
+            borderWidth: 1.5
+          }}
+          disabled={loadingAverage}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+            {loadingAverage ? (
+              <ActivityIndicator size="small" color={colors.accent} style={{ marginRight: 8 }} />
+            ) : (
+              <Ionicons name="sparkles" size={20} color={colors.accent} style={{ marginRight: 8 }} />
+            )}
+            <ThemedText weight="semibold" style={{ color: colors.accent, fontSize: 15 }}>
+              {loadingAverage ? 'Loading...' : 'Use Average Time'}
+            </ThemedText>
+            {averageHours !== null && !loadingAverage && (
+              <ThemedText weight="medium" style={{ color: colors.textSecondary, fontSize: 13, marginLeft: 8 }}>
+                ({averageHours.toFixed(1)}h avg)
+              </ThemedText>
+            )}
+          </View>
+        </Button>
 
         {/* Breaks Section */}
         <ThemedCard style={{ padding: 20, marginBottom: 16 }}>
