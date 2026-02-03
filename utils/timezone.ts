@@ -12,6 +12,13 @@ export const dateUtils = {
   },
 
   /**
+   * Alias for getPHDate - get current date/time in Philippine timezone
+   */
+  nowPH(): Date {
+    return toZonedTime(new Date(), MANILA_TZ)
+  },
+
+  /**
    * Format a date to Philippine timezone
    */
   formatPH(date: Date | string, formatStr: string): string {

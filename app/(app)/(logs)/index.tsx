@@ -32,6 +32,7 @@ export default function LogsScreen() {
   const [selectedMonth, setSelectedMonth] = useState<string>('all')
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10
+  const [calendarMonth, setCalendarMonth] = useState(new Date())
   const [modal, setModal] = useState<{
     visible: boolean
     title: string
@@ -668,7 +669,7 @@ export default function LogsScreen() {
 
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                      let pageNum
+                      let pageNum: number
                       if (totalPages <= 5) {
                         pageNum = i + 1
                       } else if (currentPage <= 3) {
@@ -752,6 +753,18 @@ export default function LogsScreen() {
       return colors.accent
     }
 
+    const changeCalendarMonth = (direction: 'prev' | 'next') => {
+      setCalendarMonth(prev => {
+        const newDate = new Date(prev)
+        if (direction === 'prev') {
+          newDate.setMonth(newDate.getMonth() - 1)
+        } else {
+          newDate.setMonth(newDate.getMonth() + 1)
+        }
+        return newDate
+      })
+    }
+
     // Group sessions by date
     const sessionsByDate = sessions.reduce((acc, session) => {
       const date = session.date
@@ -762,18 +775,46 @@ export default function LogsScreen() {
       return acc
     }, {} as Record<string, Session[]>)
 
-    // Get current month dates
-    const today = new Date()
-    const currentMonth = today.getMonth()
-    const currentYear = today.getFullYear()
+    // Get calendar month dates
+    const currentMonth = calendarMonth.getMonth()
+    const currentYear = calendarMonth.getFullYear()
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate()
     const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay()
+    const today = new Date()
 
     return (
       <View style={{ marginBottom: 24 }}>
-        <ThemedText weight="bold" style={{ fontSize: 18, marginBottom: 16 }}>
-          Calendar View - {today.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-        </ThemedText>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <TouchableOpacity
+            onPress={() => changeCalendarMonth('prev')}
+            style={{
+              backgroundColor: colors.card,
+              borderRadius: 8,
+              padding: 12,
+              borderWidth: 1,
+              borderColor: colors.border,
+            }}
+          >
+            <Ionicons name="chevron-back" size={20} color={colors.text} />
+          </TouchableOpacity>
+
+          <ThemedText weight="bold" style={{ fontSize: 18 }}>
+            {calendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+          </ThemedText>
+
+          <TouchableOpacity
+            onPress={() => changeCalendarMonth('next')}
+            style={{
+              backgroundColor: colors.card,
+              borderRadius: 8,
+              padding: 12,
+              borderWidth: 1,
+              borderColor: colors.border,
+            }}
+          >
+            <Ionicons name="chevron-forward" size={20} color={colors.text} />
+          </TouchableOpacity>
+        </View>
 
         <ThemedCard style={{ padding: 16 }}>
           {/* Day headers */}
@@ -800,15 +841,14 @@ export default function LogsScreen() {
               const date = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
               const daySessions = sessionsByDate[date] || []
               const totalHours = daySessions.reduce((sum, s) => sum + s.total_hours, 0)
-              const isToday = day === today.getDate()
+              const isToday = day === today.getDate() && currentMonth === today.getMonth() && currentYear === today.getFullYear()
 
               return (
                 <TouchableOpacity
                   key={day}
                   onPress={() => {
                     if (daySessions.length > 0) {
-                      setSearchQuery(new Date(date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }))
-                      setView('list')
+                      router.push(`/(app)/(logs)/${daySessions[0].id}`)
                     }
                   }}
                   style={{
@@ -832,7 +872,7 @@ export default function LogsScreen() {
                       {day}
                     </ThemedText>
                     {totalHours > 0 && (
-                      <ThemedText weight="bold" style={{ fontSize: 10, color: colors.accent }}>
+                      <ThemedText weight="medium" style={{ fontSize: 9, color: '#fff' }}>
                         {totalHours.toFixed(1)}h
                       </ThemedText>
                     )}
@@ -860,7 +900,7 @@ export default function LogsScreen() {
           </View>
 
           <ThemedText variant="secondary" style={{ fontSize: 12, textAlign: 'center', marginTop: 12 }}>
-            Tap a highlighted day to view sessions
+            Tap a highlighted day to view session
           </ThemedText>
         </ThemedCard>
       </View>

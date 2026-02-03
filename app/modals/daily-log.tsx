@@ -1,3 +1,5 @@
+// @ts-nocheck
+// DISABLED: Clock In/Out features - This modal is not used in Manual Entry mode
 import { useState } from 'react'
 import { View, ScrollView, Image, TouchableOpacity } from 'react-native'
 import { useRouter } from 'expo-router'

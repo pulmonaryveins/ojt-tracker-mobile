@@ -55,12 +55,12 @@ export class DebugUtils {
   static async logSystemInfo() {
     try {
       const { Platform, Dimensions } = require('react-native')
-      const { Constants } = require('expo-constants')
+      const Constants = require('expo-constants').default
       
       const systemInfo = {
         platform: Platform.OS,
         platformVersion: Platform.Version,
-        appVersion: Constants.expoConfig?.version,
+        appVersion: Constants.expoConfig?.version || Constants.manifest?.version || '1.0.0',
         screenDimensions: Dimensions.get('screen'),
         timestamp: new Date().toISOString()
       }

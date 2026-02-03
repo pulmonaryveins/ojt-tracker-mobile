@@ -114,9 +114,10 @@ export default function ManualEntryModal() {
 
       // Calculate average break duration
       const breakDurations = validSessions.map(s => {
-        if (!s.breaks || !Array.isArray(s.breaks) || s.breaks.length === 0) return 0
+        const sessionBreaks = (s as any).breaks
+        if (!sessionBreaks || !Array.isArray(sessionBreaks) || sessionBreaks.length === 0) return 0
         
-        return s.breaks.reduce((total, breakItem) => {
+        return sessionBreaks.reduce((total: number, breakItem: any) => {
           if (!breakItem.start_time || !breakItem.end_time) return total
           
           const breakStart = breakItem.start_time.split(':').map(Number)

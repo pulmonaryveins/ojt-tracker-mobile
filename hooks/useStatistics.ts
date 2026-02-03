@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
-import { Statistics } from '../types/models'
+import { ProgressStats } from '../types/models'
 import { useAuthStore } from '../stores/auth.store'
 import { dateUtils } from '../utils/timezone'
 
@@ -9,7 +9,7 @@ export function useStatistics() {
 
   return useQuery({
     queryKey: ['statistics', user?.id],
-    queryFn: async (): Promise<Statistics> => {
+    queryFn: async (): Promise<ProgressStats> => {
       if (!user?.id) throw new Error('User not authenticated')
 
       // Get stats from view
@@ -61,15 +61,12 @@ export function useStatistics() {
       const isOnTrack = stats.total_hours_completed >= expectedHours * 0.9 // 90% tolerance
 
       return {
-        totalHoursCompleted: stats.total_hours_completed || 0,
-        hoursRemaining: stats.hours_remaining || config.required_hours,
-        requiredHours: config.required_hours,
-        progressPercentage: stats.progress_percentage || 0,
-        daysWorked: stats.days_worked || 0,
-        avgHoursPerDay: stats.avg_hours_per_day || 0,
-        estimatedFinishDate,
-        isOnTrack,
-        daysSinceStart,
+        total_hours: stats.total_hours_completed || 0,
+        required_hours: config.required_hours,
+        percentage: stats.progress_percentage || 0,
+        remaining_hours: stats.hours_remaining || config.required_hours,
+        days_elapsed: daysSinceStart,
+        estimated_completion_date: estimatedFinishDate.toISOString(),
       }
     },
     enabled: !!user?.id,

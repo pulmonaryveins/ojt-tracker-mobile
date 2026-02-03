@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { View, ScrollView, TouchableOpacity, RefreshControl, Modal, Pressable, Image } from 'react-native'
+import { View, ScrollView, TouchableOpacity, RefreshControl, Modal, Pressable, Image, Alert } from 'react-native'
 import { useRouter, useFocusEffect } from 'expo-router'
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage'

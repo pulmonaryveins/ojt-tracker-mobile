@@ -655,7 +655,19 @@ export default function TrackerScreen() {
 
   // Set loading to false immediately since we don't need to load active sessions
   useEffect(() => {
-    setLoading(false)
+    const initializeTracker = async () => {
+      try {
+        setLoading(true)
+        // Check for pending sync on load
+        await checkPendingSync()
+        // Small delay to show loading screen
+        await new Promise(resolve => setTimeout(resolve, 500))
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    initializeTracker()
   }, [])
 
   if (loading) {

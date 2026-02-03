@@ -14,10 +14,10 @@ export default function AppLayout() {
           backgroundColor: colors.background,
           borderTopColor: colors.border,
           borderTopWidth: 0.5,
-          height: Platform.OS === 'ios' ? 82 : 70,
-          paddingBottom: Platform.OS === 'ios' ? 20 : 12,
-          paddingTop: Platform.OS === 'ios' ? 12 : 14,
-          paddingHorizontal: 8,
+          height: Platform.OS === 'ios' ? 88 : 64,
+          paddingBottom: Platform.OS === 'ios' ? 24 : 8,
+          paddingTop: 8,
+          paddingHorizontal: 4,
           elevation: 0,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -1 },
@@ -26,12 +26,17 @@ export default function AppLayout() {
         },
         tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.textSecondary,
-        tabBarShowLabel: false,
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '600',
+          marginTop: 4,
+          letterSpacing: 0.2,
+        },
         tabBarItemStyle: {
-          paddingVertical: 8,
+          paddingVertical: 4,
         },
         tabBarIconStyle: {
-          marginTop: 0,
+          marginTop: 2,
         },
       }}
     >
@@ -51,14 +56,14 @@ export default function AppLayout() {
             <View style={{
               alignItems: 'center',
               justifyContent: 'center',
-              width: 48,
-              height: 48,
-              borderRadius: 14,
+              width: 42,
+              height: 42,
+              borderRadius: 12,
               backgroundColor: focused ? `${color}15` : 'transparent',
             }}>
               <Ionicons 
                 name={focused ? 'stats-chart' : 'stats-chart-outline'} 
-                size={26} 
+                size={22} 
                 color={color} 
               />
             </View>
@@ -73,14 +78,14 @@ export default function AppLayout() {
             <View style={{
               alignItems: 'center',
               justifyContent: 'center',
-              width: 48,
-              height: 48,
-              borderRadius: 14,
+              width: 42,
+              height: 42,
+              borderRadius: 12,
               backgroundColor: focused ? `${color}15` : 'transparent',
             }}>
               <Ionicons 
                 name={focused ? 'timer' : 'timer-outline'} 
-                size={26} 
+                size={22} 
                 color={color} 
               />
             </View>
@@ -95,14 +100,14 @@ export default function AppLayout() {
             <View style={{
               alignItems: 'center',
               justifyContent: 'center',
-              width: 48,
-              height: 48,
-              borderRadius: 14,
+              width: 42,
+              height: 42,
+              borderRadius: 12,
               backgroundColor: focused ? `${color}15` : 'transparent',
             }}>
               <MaterialCommunityIcons 
                 name={focused ? 'notebook' : 'notebook-outline'} 
-                size={26} 
+                size={22} 
                 color={color} 
               />
             </View>
@@ -117,14 +122,14 @@ export default function AppLayout() {
             <View style={{
               alignItems: 'center',
               justifyContent: 'center',
-              width: 48,
-              height: 48,
-              borderRadius: 14,
+              width: 42,
+              height: 42,
+              borderRadius: 12,
               backgroundColor: focused ? `${color}15` : 'transparent',
             }}>
               <Ionicons 
                 name={focused ? 'document-text' : 'document-text-outline'} 
-                size={26} 
+                size={22} 
                 color={color} 
               />
             </View>
@@ -139,14 +144,14 @@ export default function AppLayout() {
             <View style={{
               alignItems: 'center',
               justifyContent: 'center',
-              width: 48,
-              height: 48,
-              borderRadius: 14,
+              width: 42,
+              height: 42,
+              borderRadius: 12,
               backgroundColor: focused ? `${color}15` : 'transparent',
             }}>
               <Ionicons 
                 name={focused ? 'person' : 'person-outline'} 
-                size={26} 
+                size={22} 
                 color={color} 
               />
             </View>
