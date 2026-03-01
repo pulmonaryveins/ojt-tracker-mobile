@@ -619,6 +619,41 @@ export class SessionService {
   }
 
   /**
+   * Replace all breaks for a session with a new set
+   */
+  static async updateSessionBreaks(
+    sessionId: string,
+    breaks: Array<{ start_time: string; end_time: string | null; duration: number }>
+  ): Promise<void> {
+    try {
+      const { error: deleteError } = await supabase
+        .from('breaks')
+        .delete()
+        .eq('session_id', sessionId)
+
+      if (deleteError) throw deleteError
+
+      if (breaks.length > 0) {
+        const { error: insertError } = await supabase
+          .from('breaks')
+          .insert(
+            breaks.map(br => ({
+              session_id: sessionId,
+              start_time: br.start_time,
+              end_time: br.end_time,
+              duration: br.duration,
+            }))
+          )
+
+        if (insertError) throw insertError
+      }
+    } catch (error) {
+      console.error('Error in updateSessionBreaks:', error)
+      throw error
+    }
+  }
+
+  /**
    * Create manual session entry
    * For students who forgot to clock in/out
    */

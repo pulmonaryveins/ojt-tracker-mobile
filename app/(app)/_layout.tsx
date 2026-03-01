@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router'
 import { useTheme } from '../../hooks/useTheme'
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
-import { View, Platform } from 'react-native'
+import { View, TouchableOpacity, Platform } from 'react-native'
 
 export default function AppLayout() {
   const { colors } = useTheme()
@@ -14,10 +14,10 @@ export default function AppLayout() {
           backgroundColor: colors.background,
           borderTopColor: colors.border,
           borderTopWidth: 0.5,
-          height: Platform.OS === 'ios' ? 88 : 64,
-          paddingBottom: Platform.OS === 'ios' ? 24 : 8,
-          paddingTop: 8,
-          paddingHorizontal: 4,
+          height: Platform.OS === 'ios' ? 84 : 60,
+          paddingBottom: Platform.OS === 'ios' ? 20 : 6,
+          paddingTop: 6,
+          paddingHorizontal: 0,
           elevation: 0,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -1 },
@@ -27,27 +27,18 @@ export default function AppLayout() {
         tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.textSecondary,
         tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600',
-          marginTop: 4,
-          letterSpacing: 0.2,
+          fontSize: 10,
+          fontWeight: '500',
+          marginTop: 2,
         },
         tabBarItemStyle: {
-          paddingVertical: 4,
-        },
-        tabBarIconStyle: {
-          marginTop: 2,
+          paddingVertical: 2,
         },
       }}
     >
-      {/* Hide the index route from the tab bar */}
-      <Tabs.Screen
-        name="index"
-        options={{
-          href: null, // This hides it from the tab bar
-        }}
-      />
-      
+      {/* Hidden index route */}
+      <Tabs.Screen name="index" options={{ href: null }} />
+
       <Tabs.Screen
         name="(dashboard)"
         options={{
@@ -56,42 +47,21 @@ export default function AppLayout() {
             <View style={{
               alignItems: 'center',
               justifyContent: 'center',
-              width: 42,
-              height: 42,
-              borderRadius: 12,
-              backgroundColor: focused ? `${color}15` : 'transparent',
+              width: 36,
+              height: 36,
+              borderRadius: 10,
+              backgroundColor: focused ? `${color}18` : 'transparent',
             }}>
-              <Ionicons 
-                name={focused ? 'stats-chart' : 'stats-chart-outline'} 
-                size={22} 
-                color={color} 
+              <Ionicons
+                name={focused ? 'stats-chart' : 'stats-chart-outline'}
+                size={20}
+                color={color}
               />
             </View>
           ),
         }}
       />
-      <Tabs.Screen
-        name="(tracker)"
-        options={{
-          title: 'Tracker',
-          tabBarIcon: ({ color, focused }) => (
-            <View style={{
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: 42,
-              height: 42,
-              borderRadius: 12,
-              backgroundColor: focused ? `${color}15` : 'transparent',
-            }}>
-              <Ionicons 
-                name={focused ? 'timer' : 'timer-outline'} 
-                size={22} 
-                color={color} 
-              />
-            </View>
-          ),
-        }}
-      />
+
       <Tabs.Screen
         name="(logs)"
         options={{
@@ -100,20 +70,62 @@ export default function AppLayout() {
             <View style={{
               alignItems: 'center',
               justifyContent: 'center',
-              width: 42,
-              height: 42,
-              borderRadius: 12,
-              backgroundColor: focused ? `${color}15` : 'transparent',
+              width: 36,
+              height: 36,
+              borderRadius: 10,
+              backgroundColor: focused ? `${color}18` : 'transparent',
             }}>
-              <MaterialCommunityIcons 
-                name={focused ? 'notebook' : 'notebook-outline'} 
-                size={22} 
-                color={color} 
+              <MaterialCommunityIcons
+                name={focused ? 'notebook' : 'notebook-outline'}
+                size={20}
+                color={color}
               />
             </View>
           ),
         }}
       />
+
+      {/* Centre FAB — Create Entry */}
+      <Tabs.Screen
+        name="(tracker)"
+        options={{
+          title: 'Add Entry',
+          tabBarLabel: () => null,
+          tabBarButton: ({ onPress, onLongPress, accessibilityLabel, accessibilityState }) => (
+            <TouchableOpacity
+              onPress={onPress ?? undefined}
+              onLongPress={onLongPress ?? undefined}
+              accessibilityLabel={accessibilityLabel}
+              accessibilityState={accessibilityState}
+              style={{
+                flex: 1,
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+                paddingBottom: Platform.OS === 'ios' ? 20 : 8,
+              }}
+              activeOpacity={0.85}
+            >
+              <View style={{
+                width: 52,
+                height: 52,
+                borderRadius: 26,
+                backgroundColor: colors.accent,
+                justifyContent: 'center',
+                alignItems: 'center',
+                marginBottom: 2,
+                shadowColor: colors.accent,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.45,
+                shadowRadius: 8,
+                elevation: 6,
+              }}>
+                <Ionicons name="add" size={28} color="#ffffff" />
+              </View>
+            </TouchableOpacity>
+          ),
+        }}
+      />
+
       <Tabs.Screen
         name="(reports)"
         options={{
@@ -122,20 +134,21 @@ export default function AppLayout() {
             <View style={{
               alignItems: 'center',
               justifyContent: 'center',
-              width: 42,
-              height: 42,
-              borderRadius: 12,
-              backgroundColor: focused ? `${color}15` : 'transparent',
+              width: 36,
+              height: 36,
+              borderRadius: 10,
+              backgroundColor: focused ? `${color}18` : 'transparent',
             }}>
-              <Ionicons 
-                name={focused ? 'document-text' : 'document-text-outline'} 
-                size={22} 
-                color={color} 
+              <Ionicons
+                name={focused ? 'document-text' : 'document-text-outline'}
+                size={20}
+                color={color}
               />
             </View>
           ),
         }}
       />
+
       <Tabs.Screen
         name="(profile)"
         options={{
@@ -144,15 +157,15 @@ export default function AppLayout() {
             <View style={{
               alignItems: 'center',
               justifyContent: 'center',
-              width: 42,
-              height: 42,
-              borderRadius: 12,
-              backgroundColor: focused ? `${color}15` : 'transparent',
+              width: 36,
+              height: 36,
+              borderRadius: 10,
+              backgroundColor: focused ? `${color}18` : 'transparent',
             }}>
-              <Ionicons 
-                name={focused ? 'person' : 'person-outline'} 
-                size={22} 
-                color={color} 
+              <Ionicons
+                name={focused ? 'person' : 'person-outline'}
+                size={20}
+                color={color}
               />
             </View>
           ),

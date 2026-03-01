@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { View, KeyboardAvoidingView, Platform, ScrollView } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useRouter, useLocalSearchParams } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { ThemedView } from '../../components/themed/ThemedView'
 import { ThemedText } from '../../components/themed/ThemedText'
@@ -13,13 +13,18 @@ import { supabase } from '../../lib/supabase'
 export default function ResetPasswordScreen() {
   const router = useRouter()
   const { colors } = useTheme()
-  
+  // Tokens are passed as route params by the root-level deep link handler
+  const { access_token, refresh_token } = useLocalSearchParams<{
+    access_token?: string
+    refresh_token?: string
+  }>()
+
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [errors, setErrors] = useState<{ password?: string; confirmPassword?: string }>({})
   const [sessionValid, setSessionValid] = useState<boolean | null>(null)
   const [isResetting, setIsResetting] = useState(false)
-  
+
   const [modal, setModal] = useState<{
     visible: boolean
     title: string
@@ -33,44 +38,68 @@ export default function ResetPasswordScreen() {
     type: 'info',
   })
 
-  // Verify we have a valid recovery session
+  // Establish a valid recovery session.
+  // When opened from an email link the root layout passes the raw tokens as
+  // route params; we exchange them for a session here. Falling back to
+  // getSession() handles the edge case where the session was already set.
   useEffect(() => {
     const verifySession = async () => {
       console.log('🔍 Verifying recovery session...')
-      
+
+      const invalidate = (msg: string) => {
+        console.log('❌', msg)
+        setSessionValid(false)
+        showModal(
+          'Invalid Link',
+          'This password reset link is invalid or has expired. Please request a new one.',
+          'error',
+          'alert-circle'
+        )
+        setTimeout(() => router.replace('/(auth)/forgot-password'), 3000)
+      }
+
       try {
-        // Get current session
+        // Path A: tokens arrived via route params (email deep link)
+        if (access_token) {
+          console.log('🔑 Setting session from recovery tokens')
+          const { data, error } = await supabase.auth.setSession({
+            access_token,
+            refresh_token: refresh_token ?? '',
+          })
+
+          if (error || !data.session) {
+            invalidate(`setSession failed: ${error?.message}`)
+            return
+          }
+
+          console.log('✅ Recovery session established')
+          setSessionValid(true)
+          return
+        }
+
+        // Path B: no params — check whether a session already exists
+        // (e.g., user refreshed the screen after tokens were already exchanged)
         const { data: { session }, error } = await supabase.auth.getSession()
-        
+
         if (error) {
           console.error('❌ Session error:', error)
           setSessionValid(false)
           return
         }
-        
+
         if (!session) {
-          console.log('❌ No session found')
-          setSessionValid(false)
-          showModal(
-            'Invalid Link',
-            'This password reset link is invalid or has expired. Please request a new one.',
-            'error',
-            'alert-circle'
-          )
-          setTimeout(() => {
-            router.replace('/(auth)/forgot-password')
-          }, 3000)
+          invalidate('No session found and no tokens in params')
           return
         }
-        
-        console.log('✅ Valid recovery session found')
+
+        console.log('✅ Existing recovery session found')
         setSessionValid(true)
       } catch (error) {
         console.error('❌ Error verifying session:', error)
         setSessionValid(false)
       }
     }
-    
+
     verifySession()
   }, [])
 

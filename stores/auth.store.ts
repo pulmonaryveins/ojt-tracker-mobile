@@ -147,7 +147,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       
       // Send password reset email with custom scheme redirect
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: 'ojttracker://auth/reset-password',
+        redirectTo: 'ojttracker://reset-password',
       })
 
       if (error) {

@@ -34,8 +34,7 @@
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.NOTIFICATIONS",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.NOTIFICATIONS"
       ],
       "package": "com.projectpransin.ojttracker",
       "intentFilters": [
@@ -47,7 +46,13 @@
               "scheme": "https",
               "host": "syekepcbxpenedsbufvb.supabase.co",
               "pathPrefix": "/auth/v1/verify"
-            },
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        },
+        {
+          "action": "VIEW",
+          "data": [
             {
               "scheme": "ojttracker"
             }

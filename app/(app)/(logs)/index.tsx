@@ -546,60 +546,6 @@ export default function LogsScreen() {
                         </View>
                       )}
 
-                      {/* Breaks Display */}
-                      {session.breaks && session.breaks.length > 0 && (
-                        <View
-                          style={{
-                            paddingTop: 12,
-                            borderTopWidth: 1,
-                            borderTopColor: colors.border,
-                            marginBottom: 12,
-                          }}
-                        >
-                          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                            <Ionicons name="pause-circle-outline" size={16} color={colors.textSecondary} style={{ marginRight: 6 }} />
-                            <ThemedText variant="secondary" style={{ fontSize: 12, fontWeight: '600' }}>
-                              Breaks ({session.breaks.length})
-                            </ThemedText>
-                          </View>
-                          {session.breaks.map((breakItem, index) => {
-                            const formatTime = (timeStr: string) => {
-                              const date = new Date(`2000-01-01T${timeStr}`)
-                              return date.toLocaleTimeString('en-US', {
-                                hour: 'numeric',
-                                minute: '2-digit',
-                                hour12: true
-                              })
-                            }
-                            
-                            return (
-                              <View key={index} style={{
-                                flexDirection: 'row',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                paddingVertical: 4,
-                                paddingHorizontal: 8,
-                                backgroundColor: colors.secondary,
-                                borderRadius: 6,
-                                marginBottom: 4
-                              }}>
-                                <ThemedText style={{ fontSize: 11, color: colors.textSecondary }}>
-                                  Break {index + 1}
-                                </ThemedText>
-                                <ThemedText style={{ fontSize: 11 }}>
-                                  {formatTime(breakItem.start_time)} - {breakItem.end_time ? formatTime(breakItem.end_time) : 'Ongoing'}
-                                </ThemedText>
-                                {breakItem.duration > 0 && (
-                                  <ThemedText style={{ fontSize: 11, color: colors.accent, fontWeight: '600' }}>
-                                    {Math.round(breakItem.duration)}min
-                                  </ThemedText>
-                                )}
-                              </View>
-                            )
-                          })}
-                        </View>
-                      )}
-
                       {session.description && (
                         <View
                           style={{

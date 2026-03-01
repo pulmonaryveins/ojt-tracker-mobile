@@ -42,6 +42,7 @@ export default function SessionDetailScreen() {
   const [editStartTime, setEditStartTime] = useState('')
   const [editEndTime, setEditEndTime] = useState('')
   const [editBreaks, setEditBreaks] = useState<Break[]>([])
+  const [editDescription, setEditDescription] = useState('')
   
   // Session report state
   const [editJournal, setEditJournal] = useState('')
@@ -60,6 +61,17 @@ export default function SessionDetailScreen() {
     }
   }
 
+  // Converts a stored HH:MM:SS time string to an ISO string for DateTimePicker
+  const timeToISO = (timeStr: string): string | null => {
+    if (!timeStr) return null
+    try { return new Date(`2000-01-01T${timeStr}`).toISOString() } catch { return null }
+  }
+
+  // Converts the ISO string emitted by DateTimePicker back to HH:MM:SS
+  const isoToTime = (iso: string): string => {
+    try { return new Date(iso).toTimeString().split(' ')[0] } catch { return '' }
+  }
+
   useEffect(() => {
     loadSession()
   }, [id])
@@ -68,8 +80,8 @@ export default function SessionDetailScreen() {
     if (session && isEditing) {
       setEditStartTime(session.start_time)
       setEditEndTime(session.end_time || '')
-      // Load actual breaks from session data
       setEditBreaks((session.breaks as Break[]) || [])
+      setEditDescription(session.description || '')
     }
   }, [isEditing, session])
 
@@ -104,41 +116,52 @@ export default function SessionDetailScreen() {
 
   const handleSave = async () => {
     if (!session || !editStartTime) {
-      Alert.alert('Error', 'Please fill in all required fields')
+      setModal({ visible: true, title: 'Error', message: 'Start time is required', type: 'error' })
       return
+    }
+
+    if (editEndTime) {
+      const start = new Date(`2000-01-01T${editStartTime}`)
+      const end = new Date(`2000-01-01T${editEndTime}`)
+      if (end <= start) {
+        setModal({ visible: true, title: 'Error', message: 'End time must be after start time', type: 'error' })
+        return
+      }
     }
 
     setSaving(true)
     try {
-      // Calculate duration and total hours
+      // Calculate per-break durations and total break time
+      let totalBreakMinutes = 0
+      const breaksToSave = editBreaks.map(br => {
+        let breakDurMinutes = 0
+        if (br.end_time) {
+          const s = new Date(`2000-01-01T${br.start_time}`)
+          const e = new Date(`2000-01-01T${br.end_time}`)
+          breakDurMinutes = (e.getTime() - s.getTime()) / (1000 * 60)
+          totalBreakMinutes += breakDurMinutes
+        }
+        return { start_time: br.start_time, end_time: br.end_time, duration: Math.round(breakDurMinutes) }
+      })
+
       let duration = 0
       let totalHours = 0
-      
       if (editEndTime) {
         const start = new Date(`2000-01-01T${editStartTime}`)
         const end = new Date(`2000-01-01T${editEndTime}`)
-        duration = (end.getTime() - start.getTime()) / (1000 * 60) // minutes
-        
-        // Calculate break duration
-        let breakDuration = 0
-        editBreaks.forEach(br => {
-          if (br.end_time) {
-            const breakStart = new Date(`2000-01-01T${br.start_time}`)
-            const breakEnd = new Date(`2000-01-01T${br.end_time}`)
-            breakDuration += (breakEnd.getTime() - breakStart.getTime()) / (1000 * 60)
-          }
-        })
-        
-        totalHours = (duration - breakDuration) / 60
+        duration = (end.getTime() - start.getTime()) / (1000 * 60)
+        totalHours = (duration - totalBreakMinutes) / 60
       }
 
-      // Update session (breaks are not stored in database, only used for calculation)
       await SessionService.updateSession(session.id, {
         start_time: editStartTime,
         end_time: editEndTime || null,
         duration,
         total_hours: totalHours,
+        description: editDescription.trim() || null,
       })
+
+      await SessionService.updateSessionBreaks(session.id, breaksToSave)
 
       setModal({ visible: true, title: 'Success', message: 'Session updated successfully', type: 'success' })
       setIsEditing(false)
@@ -336,48 +359,55 @@ export default function SessionDetailScreen() {
               </View>
               
               <View className="mb-4">
-                <ThemedText weight="medium" className="mb-2" style={{ fontSize: 14 }}>Start Time</ThemedText>
-                <TextInput
-                  value={editStartTime}
-                  onChangeText={setEditStartTime}
-                  placeholder="HH:MM (24-hour format)"
-                  placeholderTextColor={colors.textSecondary}
-                  style={{
-                    backgroundColor: colors.secondary,
-                    color: colors.text,
-                    padding: 14,
-                    borderRadius: 10,
-                    fontSize: 16,
-                    borderWidth: 1,
-                    borderColor: colors.border,
-                  }}
+                <DateTimePicker
+                  label="Start Time"
+                  mode="time"
+                  value={timeToISO(editStartTime)}
+                  onChange={(iso) => setEditStartTime(isoToTime(iso))}
                 />
-                <ThemedText variant="secondary" style={{ fontSize: 12, marginTop: 4 }}>
-                  Current: {formatTime12Hour(editStartTime)}
-                </ThemedText>
               </View>
 
               <View className="mb-4">
-                <ThemedText weight="medium" className="mb-2" style={{ fontSize: 14 }}>End Time</ThemedText>
-                <TextInput
-                  value={editEndTime}
-                  onChangeText={setEditEndTime}
-                  placeholder="HH:MM (24-hour format)"
-                  placeholderTextColor={colors.textSecondary}
-                  style={{
-                    backgroundColor: colors.secondary,
-                    color: colors.text,
-                    padding: 14,
-                    borderRadius: 10,
-                    fontSize: 16,
-                    borderWidth: 1,
-                    borderColor: colors.border,
-                  }}
+                <DateTimePicker
+                  label="End Time"
+                  mode="time"
+                  value={timeToISO(editEndTime)}
+                  onChange={(iso) => setEditEndTime(isoToTime(iso))}
                 />
-                <ThemedText variant="secondary" style={{ fontSize: 12, marginTop: 4 }}>
-                  Current: {formatTime12Hour(editEndTime)}
+              </View>
+            </ThemedCard>
+
+            {/* Description Edit */}
+            <ThemedCard className="mb-4">
+              <View className="flex-row items-center mb-4">
+                <Ionicons name="document-text-outline" size={20} color={colors.accent} style={{ marginRight: 8 }} />
+                <ThemedText variant="secondary" className="text-sm">
+                  Notes / Description
                 </ThemedText>
               </View>
+              <TextInput
+                value={editDescription}
+                onChangeText={setEditDescription}
+                placeholder="Add notes about this session (optional)"
+                placeholderTextColor={colors.textSecondary}
+                multiline
+                numberOfLines={3}
+                maxLength={500}
+                style={{
+                  backgroundColor: colors.secondary,
+                  color: colors.text,
+                  padding: 14,
+                  borderRadius: 10,
+                  fontSize: 15,
+                  minHeight: 80,
+                  textAlignVertical: 'top',
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                }}
+              />
+              <ThemedText variant="secondary" style={{ fontSize: 11, marginTop: 4, textAlign: 'right' }}>
+                {editDescription.length}/500
+              </ThemedText>
             </ThemedCard>
 
             {/* Breaks Edit */}
@@ -403,39 +433,19 @@ export default function SessionDetailScreen() {
                     </TouchableOpacity>
                   </View>
                   
-                  <View className="flex-row gap-2">
-                    <View className="flex-1">
-                      <ThemedText variant="secondary" className="text-xs mb-1">Start</ThemedText>
-                      <TextInput
-                        value={breakItem.start_time}
-                        onChangeText={(value) => handleUpdateBreak(index, 'start_time', value)}
-                        placeholder="HH:MM"
-                        placeholderTextColor={colors.textSecondary}
-                        style={{
-                          backgroundColor: colors.background,
-                          color: colors.text,
-                          padding: 8,
-                          borderRadius: 6,
-                          fontSize: 14,
-                        }}
-                      />
-                    </View>
-                    <View className="flex-1">
-                      <ThemedText variant="secondary" className="text-xs mb-1">End</ThemedText>
-                      <TextInput
-                        value={breakItem.end_time || ''}
-                        onChangeText={(value) => handleUpdateBreak(index, 'end_time', value)}
-                        placeholder="HH:MM"
-                        placeholderTextColor={colors.textSecondary}
-                        style={{
-                          backgroundColor: colors.background,
-                          color: colors.text,
-                          padding: 8,
-                          borderRadius: 6,
-                          fontSize: 14,
-                        }}
-                      />
-                    </View>
+                  <View style={{ gap: 8 }}>
+                    <DateTimePicker
+                      label="Break Start"
+                      mode="time"
+                      value={timeToISO(breakItem.start_time)}
+                      onChange={(iso) => handleUpdateBreak(index, 'start_time', isoToTime(iso))}
+                    />
+                    <DateTimePicker
+                      label="Break End"
+                      mode="time"
+                      value={breakItem.end_time ? timeToISO(breakItem.end_time) : null}
+                      onChange={(iso) => handleUpdateBreak(index, 'end_time', isoToTime(iso))}
+                    />
                   </View>
                 </View>
               ))}
@@ -486,6 +496,17 @@ export default function SessionDetailScreen() {
                 </ThemedText>
               </View>
             </ThemedCard>
+
+            {/* Description Display */}
+            {session.description && (
+              <ThemedCard className="mb-4">
+                <View className="flex-row items-center mb-3">
+                  <Ionicons name="document-text-outline" size={20} color={colors.accent} style={{ marginRight: 8 }} />
+                  <ThemedText variant="secondary" className="text-sm">Notes</ThemedText>
+                </View>
+                <ThemedText style={{ fontSize: 15, lineHeight: 22 }}>{session.description}</ThemedText>
+              </ThemedCard>
+            )}
 
             {/* Breaks Display */}
             {session.breaks && session.breaks.length > 0 && (
